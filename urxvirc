@@ -1,0 +1,41 @@
+# Default key bindings for urxvi
+
+# repeat count:
+bind 0 (or (push_repeat 0) (posx 0))
+bind 1 (push_repeat 1)
+bind 2 (push_repeat 2)
+bind 3 (push_repeat 3)
+bind 4 (push_repeat 4)
+bind 5 (push_repeat 5)
+bind 6 (push_repeat 6)
+bind 7 (push_repeat 7)
+bind 8 (push_repeat 8)
+bind 9 (push_repeat 9)
+
+# cursor movement:
+bind h (move 0 -1)
+bind j (move 1)
+bind k (move -1)
+bind l (move 0 1)
+bind <Up> (move -1)
+bind <Down> (move 1)
+bind <Left> (move 0 -1)
+bind <Right> (move 0 1)
+
+bind H (posy (+ view_start 1))
+bind L (posy (+ view_start (- page_size 1)))
+
+bind ^ (posx ^)
+bind $ (posx $)
+bind <Return> (and (move 1) (posx ^))
+
+bind <Home> (posy first_row)
+bind <End> (posy last_row)
+bind <PageUp> (move (- 2 page_size))
+bind <PageDown> (move (- page_size 2))
+bind <C-b> (move (- 2 page_size))
+bind <C-f> (move (- page_size 2))
+bind <C-u> (move (/ (- 2 page_size) 2))
+bind <C-d> (move (/ (- page_size 2) 2))
+
+bind q quit

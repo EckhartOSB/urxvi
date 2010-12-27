@@ -1,0 +1,440 @@
+#! perl
+
+use File::Basename;
+
+use constant {
+  MK_SHIFT   => 0x00010000,
+  MK_CONTROL => 0x00020000,
+  MK_MOD4    => 0x00040000,
+  MK_ALT     => 0x00080000,
+};
+
+# Author: Chip Camden <sterling@camdensoftware.com>
+
+sub on_user_command {
+  my ($self, $cmd) = @_;
+  if ($cmd =~ s/^urxvi\b//) {
+    if ($self->{urxvi}) {
+      $self->{urxvi} = ();
+    } else {
+      my $urxvi = {};
+      my $status = {};
+      $status->{rend} = urxvt::OVERLAY_RSTYLE;
+      $status->{window} = $self->overlay(
+			     0, 0, $self->ncol, 1, $status->{rend}, 0
+			     );
+
+      $urxvi->{status} = $status;
+      $urxvi->{select_mode} = 0;
+      $self->{urxvi} = $urxvi;
+      $self->update();
+    }
+  }
+  ()
+}
+
+sub on_key_press {
+  my ($self, $event, $keysym) = @_;
+  my $urxvi = $self->{urxvi};
+  if ($urxvi) {
+    my $repeat = $self->{repeat};
+    if ($keysym > 0xffe0) {
+      $self->{metakeys} |= $self->metacode($keysym);
+    } else {
+      my $meta = $self->{metakeys};
+      $meta &= ~MK_SHIFT if ($keysym <= 0xff);
+      $keysym |= $meta;
+      if (my $cmd = $self->{keymap}->{"$keysym"}) {
+        $self->eval($cmd);
+      } else {
+        $self->scr_bell();
+      }
+    }
+    # if the command didn't consume or change repeat count, clear it.
+    $self->{repeat} = 0 if ($self->{repeat} == $repeat);
+    $self->update();
+    return 1;
+  }
+  ()
+}
+
+sub on_key_release {
+  my ($self, $event, $keysym) = @_;
+  if ($keysym > 0xffe0) {
+    $self->{metakeys} &= ~($self->metacode($keysym));
+  }
+  $self->{urxvi};
+}
+
+sub metacode {
+  my ($self, $keysym) = @_;
+  if (($keysym == 0xffe1) || ($keysym == 0xffe2)) {
+    MK_SHIFT;
+  } elsif (($keysym == 0xffe3) || ($keysym == 0xffe4)) {
+    MK_CONTROL;
+  } elsif ($keysym == 0xffeb) {
+    MK_MOD4;
+  } elsif (($keysym == 0xffe9) || ($keysym == 0xffea)) {
+    MK_ALT;
+  } else {
+    0;
+  }
+}
+
+sub update {
+  my ($self) = @_;
+  my $urxvi = $self->{urxvi};
+  if ($urxvi)
+  {
+    my ($crow, $ccol) = $self->screen_cur();
+    if ($urxvi->{select_mode}) {
+       $self->selection_beg($urxvi->{select_anchor});
+       $self->selection_end($crow, $ccol);
+    }
+    my $status = $urxvi->{status};
+    my $w = $status->{window};
+    my $sts = "urxvi | ";
+    $sts .= "-- VISUAL -- | " if $urxvi->{select_mode};
+    $sts .= "$crow,$ccol";
+    $sts .= " | Repeat: $self->{repeat} " if $self->{repeat};
+    my $rem = $self->ncol - $self->strwidth($sts);
+    $sts .= (' ' x $rem) if $rem > 0;
+    $w->set(0,0,$sts);
+    $w->show();
+    $self->want_refresh();
+  }
+}
+
+sub my_resource {
+  my ($self, $name) = @_;
+  $self->x_resource ("$self->{name}.$name");
+}
+
+sub on_start {
+  my ($self) = @_;
+
+  ($self->{name} = __PACKAGE__) =~ s/.*:://;
+  $self->{name} =~ tr/_/-/;
+  $self->{urxvi} = ();
+  $self->{debug} = ($self->my_resource("debug") eq "on");
+  $self->{debug_indent} = '';
+  $self->define_functions();
+  $self->define_keynames();
+  $self->{metakeys} = 0;
+  $self->{keymap} = {};
+  $self->source(dirname(__FILE__) . "/urxvirc");
+  $self->source($self->my_resource("rcfile") || "~/.urxvirc");
+  $self->{repeat} = 0;		# repeat count for commands
+}
+
+sub define_keynames {
+  my ($self) = @_;
+  my $k = {};
+  $k->{BS} = 0xff08;
+  $k->{Tab} = 0xff09;
+  $k->{NL} = 0xff0a;
+  $k->{FF} = 0xff0c;
+  $k->{CR} = 0xff0d;
+  $k->{Return} = 0xff0d;
+  $k->{Enter} = 0xff0d;
+  $k->{Space} = 0x20;
+  $k->{Del} = 0xffff;
+  $k->{Up} = 0xff52;
+  $k->{Down} = 0xff54;
+  $k->{Left} = 0xff51;
+  $k->{Right} = 0xff53;
+  for (1..12) {
+    $k->{"F$_"} = 0xffbd + $_;
+  }
+  $k->{Insert} = 0xff63;
+  $k->{Home} = 0xff50;
+  $k->{End} = 0xff57;
+  $k->{PageUp} = 0xff55;
+  $k->{PageDown} = 0xff56;
+  $k->{kHome} = 0xff95;
+  $k->{kEnd} = 0xff9c;
+  $k->{kPageUp} = 0xff9a;
+  $k->{kPageDown} = 0xff9b;
+  $k->{kPlus} = 0xffab;
+  $k->{kMinus} = 0xffad;
+  $k->{kMultiply} = 0xffaa;
+  $k->{kDivide} = 0xffaf;
+  $k->{kEnter} = 0xff8d;
+  $k->{kPoint} = 0xffae;
+  for (0..9) {
+    $k->{"k$_"} = 0xffb0 + $_;
+  }
+
+  # Special bit flags for metakeys
+  $k->{"S-"} = MK_SHIFT;
+  $k->{"C-"} = MK_CONTROL;
+  $k->{"M-"} = MK_MOD4;
+  $k->{"A-"} = MK_ALT;
+  $self->{keynames} = $k;
+}
+
+sub define_functions {
+  my ($self) = @_;
+  my $functions = {};
+  $functions->{"+"} = sub {
+    my $result = 0;
+    for (@_) {
+      $result += $self->eval($_);
+    }
+    $result;
+  };
+  $functions->{"-"} = sub {
+    my $result = $self->eval(shift);
+    for (@_) {
+      $result -= $self->eval($_);
+    }
+    $result;
+  };
+  $functions->{"*"} = sub {
+    my $result = $self->eval(shift);
+    for (@_) {
+      $result *= $self->eval($_);
+    }
+    $result;
+  };
+  $functions->{"/"} = sub {
+    my $result = $self->eval(shift);
+    for (@_) {
+      $result /= $self->eval($_);
+    }
+    $result;
+  };
+  $functions->{and} = sub {
+    my $rval = $self;
+    for (@_) {
+      last if !($rval &&= $self->eval($_));
+    }
+    $rval;
+  };
+  $functions->{bind} = sub {
+    my ($key, $cmd) = @_;
+    my $keysym = $self->translate_keyname($self->eval($key));
+    $self->{keymap}->{"$keysym"} = $cmd;
+  };
+  $functions->{cursor_row} = sub {
+    my ($crow, $ccol) = $self->screen_cur;
+    $crow;
+  };
+  $functions->{cursor_column} = sub {
+    my ($crow, $ccol) = $self->screen_cur;
+    $ccol;
+  };
+  $functions->{first_row} = sub { $self->top_row; };
+  $functions->{last_column} = sub { $self->ncol; };
+  $functions->{last_row} = sub { $self->nrow - 1; }; 
+  $functions->{max} = sub {
+    my $result = $self->eval(shift);
+    for (@_) {
+      my $next = $self->eval($_);
+        $result = $next if ($next > $result);
+    }
+    $result;
+  };
+  $functions->{min} = sub {
+    my $result = $self->eval(shift);
+    for (@_) {
+      my $next = $self->eval($_);
+        $result = $next if ($next < $result);
+    }
+    $result;
+  };
+  $functions->{move} = sub {
+    my $nrows = $self->eval(shift);
+    my $ncols = $self->eval(shift);
+    my $repeat = $self->{repeat} || 1;
+    my ($crow,$ccol) = $self->screen_cur;
+    if ($nrows) {
+      my $new_row = $crow + ($nrows * $repeat);
+      if ($new_row >= $self->nrow) {
+        $new_row = $self->nrow-1;
+      } elsif ($new_row < $self->top_row) {
+        $new_row = $self->top_row;
+      }
+      if ($new_row <= $self->view_start) {
+	$self->view_start($new_row-1);	# keep one above us
+      } elsif ($new_row >= ($self->view_start + $self->nrow)) {
+	$self->view_start($new_row - ($self->nrow - 1));
+      }
+      $crow = $new_row;
+    }
+    if ($ncols) {
+      my $new_col = $ccol + ($ncols * $repeat);
+      if ($new_col < 0) {
+        $new_col = 0;
+      } elsif ($new_col >= $self->ncol) {
+        $new_col = $self->ncol-1;
+      }
+      $ccol = $new_col;
+    }
+    $self->screen_cur($crow, $ccol);
+    $self->{repeat} = 0;
+    ($crow, $ccol);
+  };
+  $functions->{or} = sub {
+    my $rval;
+    for (@_) {
+      last if ($rval ||= $self->eval($_));
+    }
+    $rval;
+  };
+  $functions->{page_size} = sub {
+    $self->nrow;
+  };
+  $functions->{posx} = sub {
+    my $col = $self->eval(shift);
+    my ($crow, $ccol) = $self->screen_cur;
+    my $text;
+    if ($col eq '^') {
+      $text = $self->ROW_t($crow);
+      for ($ccol = 0;
+           ($ccol < $self->ncol) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
+	   $ccol++)
+	   {}
+      $ccol = 0 if ($ccol > $self->ncol);
+    } elsif ($col eq '$') {
+      $text = $self->ROW_t($crow);
+      for ($ccol = $self->ncol-1;
+           ($ccol > 0) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
+	   $ccol--)
+	   {}
+    } elsif (($col >= 0) && ($col < $self->ncol)) {
+      $ccol = $col;
+    } else {
+      $self->scr_bell();
+    }
+    $self->screen_cur($crow,$ccol);
+    $self;
+  };
+  $functions->{posy} = sub {
+    my $row = $self->eval(shift);
+    my $success = $self;
+    if (($row < $self->top_row) ||
+        ($row >= $self->nrow)) {
+      $self->scr_bell;
+      $success = ();
+    } else {
+      my ($crow, $ccol) = $self->screen_cur;
+      my $vrow = $self->view_start;
+      my $max = $row - 1;
+      my $min = $row - ($self->nrow - 1);
+      if ($vrow > $max) {
+        $self->view_start($max);
+      } elsif ($vrow < $min) {
+        $self->view_start($min);
+      }
+      $self->screen_cur($row, $ccol);
+    }
+    $success;
+  };
+  $functions->{push_repeat} = sub {
+    my $digit = $self->eval(shift);
+    $self->{repeat} = ($self->{repeat} * 10) + $digit;
+    $self->{repeat};
+  };
+  $functions->{quit} = sub { $self->{urxvi} = (); $self;};
+  $functions->{source} = sub { $self->source(map($self->eval, @_)) };
+  $functions->{view_start} = sub { $self->view_start; };
+  $self->{functions} = $functions;
+}
+
+sub translate_keyname {
+  my ($self, $key) = @_;
+
+  if ($key =~ /^<(.+)>$/) {
+    $self->symbolic_keyname($1);
+  } else {
+    ord($key);
+  }
+}
+
+sub symbolic_keyname {
+  my ($self, $key) = @_;
+  if ($key =~ /([SCMA]-)(.+)/) {
+    $self->{keynames}->{"$1"} | $self->symbolic_keyname($2);
+  } else {
+    $self->{keynames}->{"$key"} || ord($key);
+  }
+}
+
+sub source {
+  my ($self, $file, $complain) = @_;
+  if (open(my $fh, "<", glob($file))) {
+    my $line = 0;
+    while (<$fh>) {
+      $line++;
+      chomp;
+      $self->eval($_, $file, $line);
+    }
+    close $fh;
+    $self;
+  } elsif ($complain) {
+    warn "urxvi: Cannot open: $file";
+    ()
+  }
+}
+
+sub eval {
+  my ($self, $cmd, $file, $line) = @_;
+  $self->debug_indent;
+  $self->debug_out("eval: $cmd\n");
+  my @tokens = ();
+  $file ||= 'Error';
+  $line ||= '';
+  my $paren = 0;
+  my @curr_token = ();
+  while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^ #()]*)//) {	# consume a token
+    my $token = $1;
+    last if ($token eq '#');			# comment
+    if ($token eq '(') {			# parenthesized expression
+      $paren++;
+    } elsif ($token eq ')') {
+      $paren--;
+    }
+    push @curr_token, $token;
+    if (!$paren) {
+      push @tokens, join(' ', @curr_token);
+      @curr_token = ();
+    }
+  }
+  warn "urxvi: Mismatched parentheses in: $cmd" if $paren;
+  my $result;
+  $cmd = shift @tokens;
+  if (defined($cmd)) {
+    if ($cmd =~ /^\((.+)\)$/) {
+      $cmd = $self->eval($1);
+    }
+    if (my $func = $self->{functions}->{"$cmd"}) {
+      $result = $func->(@tokens);
+    } else {
+      $cmd =~ s/^(['"])(.*)\1$/\2/; 		# unquote, if quoted
+      $result = $cmd;		# Not a function, just return the token
+    }
+  }
+  $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
+  $self->debug_outdent;
+  $result;
+}
+
+sub debug_out {
+  my $self = shift;
+  print "urxvi:$self->{debug_indent}@_" if $self->{debug};
+}
+
+sub debug_indent {
+  my $self = shift;
+  if ($self->{debug}) {
+    $self->{debug_indent} .= (length($self->{debug_indent}) > 0) ? "\x{2502}" : ' ';
+  }
+}
+
+sub debug_outdent {
+  my $self = shift;
+  $self->{debug_indent} = substr($self->{debug_indent}, 0, -1) if $self->{debug};
+}
+
+# vim:set sw=3 sts=3 et:
