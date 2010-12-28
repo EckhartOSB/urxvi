@@ -38,4 +38,8 @@ bind <C-f> (move (- page_size 2))
 bind <C-u> (move (/ (- 2 page_size) 2))
 bind <C-d> (move (/ (- page_size 2) 2))
 
+# selection
+bind v select
+
+# miscellaneous
 bind q quit

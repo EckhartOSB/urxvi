@@ -87,16 +87,27 @@ sub update {
   if ($urxvi)
   {
     my ($crow, $ccol) = $self->screen_cur();
-    if ($urxvi->{select_mode}) {
-       $self->selection_beg($urxvi->{select_anchor});
-       $self->selection_end($crow, $ccol);
-    }
     my $status = $urxvi->{status};
     my $w = $status->{window};
     my $sts = "urxvi | ";
-    $sts .= "-- VISUAL -- | " if $urxvi->{select_mode};
     $sts .= "$crow,$ccol";
-    $sts .= " | Repeat: $self->{repeat} " if $self->{repeat};
+    my $sel = $urxvi->{select_prev};
+    $self->scr_xor_span(@$sel) if $sel;
+    delete $urxvi->{select_prev};
+    if ($urxvi->{select_mode}) {
+       my ($srow, $scol) = @{ $urxvi->{select_anchor} };
+       my ($brow, $bcol, $erow, $ecol) =
+          (($srow < $crow) || (($srow == $crow) && ($scol <= $ccol))) ?
+          ($srow, $scol, $crow, $ccol) :
+	  ($crow, $ccol, $srow, $scol);
+       $self->selection_beg($brow, $bcol);
+       $self->selection_end($erow, $ecol);
+       @$sel = ($brow, $bcol, $erow, $ecol, urxvt::RS_RVid);
+       $self->scr_xor_span(@$sel);
+       $urxvi->{select_prev} = $sel;
+       $sts .= " | Select $brow,$bcol..$erow,$ecol";
+    }
+    $sts .= " | Repeat: $self->{repeat}" if $self->{repeat};
     my $rem = $self->ncol - $self->strwidth($sts);
     $sts .= (' ' x $rem) if $rem > 0;
     $w->set(0,0,$sts);
@@ -273,7 +284,7 @@ sub define_functions {
     }
     $self->screen_cur($crow, $ccol);
     $self->{repeat} = 0;
-    ($crow, $ccol);
+    \($crow, $ccol);
   };
   $functions->{or} = sub {
     my $rval;
@@ -295,7 +306,7 @@ sub define_functions {
            ($ccol < $self->ncol) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
 	   $ccol++)
 	   {}
-      $ccol = 0 if ($ccol > $self->ncol);
+      $ccol = 0 if ($ccol >= $self->ncol);
     } elsif ($col eq '$') {
       $text = $self->ROW_t($crow);
       for ($ccol = $self->ncol-1;
@@ -308,11 +319,11 @@ sub define_functions {
       $self->scr_bell();
     }
     $self->screen_cur($crow,$ccol);
-    $self;
+    \($crow,$ccol);
   };
   $functions->{posy} = sub {
     my $row = $self->eval(shift);
-    my $success = $self;
+    my $success = ($row);
     if (($row < $self->top_row) ||
         ($row >= $self->nrow)) {
       $self->scr_bell;
@@ -328,6 +339,7 @@ sub define_functions {
         $self->view_start($min);
       }
       $self->screen_cur($row, $ccol);
+      $success = \($row,$ccol);
     }
     $success;
   };
@@ -336,7 +348,14 @@ sub define_functions {
     $self->{repeat} = ($self->{repeat} * 10) + $digit;
     $self->{repeat};
   };
-  $functions->{quit} = sub { $self->{urxvi} = (); $self;};
+  $functions->{quit} = sub { $self->{urxvi} = (); 1;};
+  $functions->{select} = sub {
+    my $urxvi = $self->{urxvi};
+    if ($urxvi->{select_mode} ^= 1) {  # toggle
+      my @anchor = $self->screen_cur;
+      $urxvi->{select_anchor} = \@anchor;
+    }
+  };
   $functions->{source} = sub { $self->source(map($self->eval, @_)) };
   $functions->{view_start} = sub { $self->view_start; };
   $self->{functions} = $functions;
