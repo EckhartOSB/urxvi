@@ -37,6 +37,7 @@ sub on_key_press {
   my ($self, $event, $keysym) = @_;
   my $urxvi = $self->{urxvi};
   if ($urxvi) {
+    $self->{last_eventtime} = $event->{time};
     my $repeat = $self->{repeat};
     if ($keysym > 0xffe0) {
       $self->{metakeys} |= $self->metacode($keysym);
@@ -91,9 +92,6 @@ sub update {
     my $w = $status->{window};
     my $sts = "urxvi | ";
     $sts .= "$crow,$ccol";
-    my $sel = $urxvi->{select_prev};
-    $self->scr_xor_span(@$sel) if $sel;
-    delete $urxvi->{select_prev};
     if ($urxvi->{select_mode}) {
        my ($srow, $scol) = @{ $urxvi->{select_anchor} };
        my ($brow, $bcol, $erow, $ecol) =
@@ -102,9 +100,7 @@ sub update {
 	  ($crow, $ccol, $srow, $scol);
        $self->selection_beg($brow, $bcol);
        $self->selection_end($erow, $ecol);
-       @$sel = ($brow, $bcol, $erow, $ecol, urxvt::RS_RVid);
-       $self->scr_xor_span(@$sel);
-       $urxvi->{select_prev} = $sel;
+       $self->selection_make($self->{last_eventtime});
        $sts .= " | Select $brow,$bcol..$erow,$ecol";
     }
     $sts .= " | Repeat: $self->{repeat}" if $self->{repeat};
