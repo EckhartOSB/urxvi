@@ -37,21 +37,15 @@ sub on_key_press {
   my ($self, $event, $keysym) = @_;
   my $urxvi = $self->{urxvi};
   if ($urxvi) {
-    $self->{last_eventtime} = $event->{time};
+    $self->debug_out(sprintf("keypress: %04x\n", $keysym));
+    $self->{last_event} = $event;
     if ($keysym > 0xffe0) {
       $self->{metakeys} |= $self->metacode($keysym);
     } else {
       my $meta = $self->{metakeys};
       $meta &= ~MK_SHIFT if ($keysym <= 0xff);
       $keysym |= $meta;
-      my $repeat = $self->{repeat};
-      if (my $cmd = $self->{keymap}->{"$keysym"}) {
-        $self->eval($cmd);
-      } else {
-        $self->scr_bell();
-      }
-      # if the command didn't change repeat count, clear it.
-      $self->{repeat} = 0 if ($self->{repeat} == $repeat);
+      $self->eval_key($keysym);
     }
     $self->update();
     return 1;
@@ -65,6 +59,19 @@ sub on_key_release {
     $self->{metakeys} &= ~($self->metacode($keysym));
   }
   $self->{urxvi};
+}
+
+sub eval_key {
+  my ($self, $keysym) = @_;
+  my $repeat = $self->{repeat};
+  if (my $keymap = $self->{keymap}->{"$keysym"}) {
+    my ($context, $cmd) = @$keymap;
+    $context->eval($cmd);
+  } else {
+    $self->scr_bell();
+  }
+  # if the command didn't change repeat count, clear it.
+  $self->{repeat} = 0 if ($self->{repeat} == $repeat);
 }
 
 sub metacode {
@@ -91,7 +98,8 @@ sub update {
     my $status = $urxvi->{status};
     my $w = $status->{window};
     my $sts = "urxvi | ";
-    $sts .= "$crow,$ccol";
+    my $rrow = $crow - $self->top_row + 1;
+    $sts .= "$crow($rrow),$ccol";
     if ($urxvi->{select_mode}) {
        my ($srow, $scol) = @{ $urxvi->{select_anchor} };
        my ($brow, $bcol, $erow, $ecol) =
@@ -100,7 +108,7 @@ sub update {
 	  ($crow, $ccol, $srow, $scol);
        $self->selection_beg($brow, $bcol);
        $self->selection_end($erow, $ecol);
-       $self->selection_make($self->{last_eventtime});
+       $self->selection_make($self->{last_event}->{time});
        $sts .= " | Select $brow,$bcol..$erow,$ecol";
     }
     $sts .= " | Repeat: $self->{repeat}" if $self->{repeat};
@@ -144,6 +152,7 @@ sub define_keynames {
   $k->{CR} = 0xff0d;
   $k->{Return} = 0xff0d;
   $k->{Enter} = 0xff0d;
+  $k->{Esc} = 0xff1b;
   $k->{Space} = 0x20;
   $k->{Del} = 0xffff;
   $k->{Up} = 0xff52;
@@ -183,7 +192,7 @@ sub define_keynames {
 sub define_functions {
   my ($global_self) = @_;
   my $functions = {};
-  $functions->{"+"} = sub {
+  $functions->{'+'} = sub {
     my $self = shift;
     my $result = 0;
     for (@_) {
@@ -191,7 +200,7 @@ sub define_functions {
     }
     $result;
   };
-  $functions->{"-"} = sub {
+  $functions->{'-'} = sub {
     my $self = shift;
     my $result = $self->eval(shift);
     for (@_) {
@@ -199,7 +208,7 @@ sub define_functions {
     }
     $result;
   };
-  $functions->{"*"} = sub {
+  $functions->{'*'} = sub {
     my $self = shift;
     my $result = $self->eval(shift);
     for (@_) {
@@ -207,13 +216,40 @@ sub define_functions {
     }
     $result;
   };
-  $functions->{"/"} = sub {
+  $functions->{'/'} = sub {
     my $self = shift;
     my $result = $self->eval(shift);
     for (@_) {
       $result /= $self->eval($_);
     }
     $result;
+  };
+  $functions->{'^'} = sub {
+    my ($self, $row) = @_;
+    if (!$row) {
+      ($row) = $global_self->screen_cur;
+    }
+    my $text = $global_self->ROW_t($row);
+    my $ccol;
+    for ($ccol = 0;
+         ($ccol < $global_self->ncol) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
+	 $ccol++)
+	 {}
+    $ccol = 0 if ($ccol >= $global_self->ncol);
+    $ccol;
+  };
+  $functions->{'$'} = sub {
+    my ($self, $row) = @_;
+    if (!$row) {
+      ($row) = $global_self->screen_cur;
+    }
+    my $text = $global_self->ROW_t($row);
+    my $ccol;
+    for ($ccol = $global_self->ncol-1;
+	 ($ccol > 0) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
+	 $ccol--)
+	 {}
+    $ccol;
   };
   $functions->{and} = sub {
     my $self = shift;
@@ -226,7 +262,8 @@ sub define_functions {
   $functions->{bind} = sub {
     my ($self, $key, $cmd) = @_;
     my $keysym = $global_self->translate_keyname($self->eval($key));
-    $global_self->{keymap}->{"$keysym"} = $cmd;
+    my @keymap = ($self, $cmd);
+    $global_self->{keymap}->{"$keysym"} = \@keymap;
   };
   $functions->{cursor_row} = sub {
     my $self = shift;
@@ -240,31 +277,35 @@ sub define_functions {
   };
   $functions->{def} = sub {
     my ($self, $name, $args, $body) = @_;
-    my $context = {};
-    $context->{functions} = {};
-    $context->{prev_context} = $self;
-    if ($self->{debug}) {
-      $context->{debug} = $self->{debug};
-      $context->{debug_indent} = "<$name>";
-    }
     my @params = ();
     while ($args =~ s/[ (]*(\w+)[ )]*//) {
       push @params, $1;
     }
-    bless $context;
     $self->{functions}->{$name} = sub {
       my @args = @_;
       my $self = shift @args;
+      my $context = {};
+      bless $context;
+      $context->{functions} = {};
+      $context->{prev_context} = $self;
+      if ($self->{debug}) {
+	$context->{debug} = $self->{debug};
+	$context->{debug_indent} = $self->{debug_indent};
+      }
       for (@params) {
 	my $arg = shift @args;
 	$self->debug_out("$_ => $arg\n");
-        $context->{functions}->{$_} = sub { $arg };
+        $context->{functions}->{$_} = sub { $self->eval($arg) };
       }
       $context->eval($body);
     }
   };
   $functions->{first_row} = sub { $global_self->top_row; };
-  $functions->{last_column} = sub { $global_self->ncol; };
+  $functions->{if} = sub {
+    my ($self, $cond, $iftrue, $iffalse) = @_;
+    ($self->eval($cond)) ? ($self->eval($iftrue)) : ($self->eval($iffalse))
+  };
+  $functions->{last_column} = sub { $global_self->ncol-1; };
   $functions->{last_row} = sub { $global_self->nrow - 1; }; 
   $functions->{max} = sub {
     my $self = shift;
@@ -329,20 +370,7 @@ sub define_functions {
     my $col = $self->eval(shift);
     my ($crow, $ccol) = $global_self->screen_cur;
     my $text;
-    if ($col eq '^') {
-      $text = $global_self->ROW_t($crow);
-      for ($ccol = 0;
-           ($ccol < $global_self->ncol) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
-	   $ccol++)
-	   {}
-      $ccol = 0 if ($ccol >= $global_self->ncol);
-    } elsif ($col eq '$') {
-      $text = $global_self->ROW_t($crow);
-      for ($ccol = $global_self->ncol-1;
-           ($ccol > 0) && (substr($text,$ccol,1) =~ /[\s\t\x{FFFF}]/);
-	   $ccol--)
-	   {}
-    } elsif (($col >= 0) && ($col < $global_self->ncol)) {
+    if (($col >= 0) && ($col < $global_self->ncol)) {
       $ccol = $col;
     } else {
       $global_self->scr_bell;
@@ -373,6 +401,17 @@ sub define_functions {
     }
     $success;
   };
+  $functions->{push_input} = sub {
+    my $self = shift;
+    for (@_) {
+      my $keys = $self->eval($_);
+      while ($keys =~ s/(<.+?>|.)//) {
+        my $keysym = $global_self->translate_keyname($1);
+	$global_self->eval_key($keysym) if $keysym;
+      }
+    }
+    \@_;
+  };
   $functions->{push_repeat} = sub {
     my $self = shift;
     my $digit = $self->eval(shift);
@@ -388,6 +427,7 @@ sub define_functions {
       $urxvi->{select_anchor} = \@anchor;
     }
   };
+  $functions->{select_mode} = sub { my $urxvi = $global_self->{urxvi}; $urxvi->{select_mode} if $urxvi; };
   $functions->{source} = sub { my $self = shift; $global_self->source(map($self->eval, @_)) };
   $functions->{repeat} = sub { $global_self->{repeat} };
   $functions->{view_start} = sub { $global_self->view_start; };
@@ -420,7 +460,7 @@ sub source {
     while (<$fh>) {
       $line++;
       chomp;
-      $self->eval($_, $file, $line);
+      $self->eval($_, $file, $line, $fh);
     }
     close $fh;
     $self;
@@ -431,29 +471,31 @@ sub source {
 }
 
 sub eval {
-  my ($self, $cmd, $file, $line) = @_;
-  $self->debug_indent;
-  $self->debug_out("eval: $cmd\n");
+  my ($self, $cmd, $file, $line, $stream) = @_;
   my @tokens = ();
   $file ||= 'Error';
   $line ||= '';
   my $paren = 0;
   my @curr_token = ();
-  while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^ #()]*)//) {	# consume a token
-    my $token = $1;
-    last if ($token eq '#');			# comment
-    if ($token eq '(') {			# parenthesized expression
-      $paren++;
-    } elsif ($token eq ')') {
-      $paren--;
+  $self->debug_indent;
+  do {
+    $self->debug_out("eval: $cmd\n");
+    while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^ #()]*)//) {	# consume a token
+      my $token = $1;
+      last if ($token eq '#');			# comment
+      if ($token eq '(') {			# parenthesized expression
+	$paren++;
+      } elsif ($token eq ')') {
+	$paren--;
+      }
+      push @curr_token, $token;
+      if (!$paren) {
+	push @tokens, join(' ', @curr_token);
+	@curr_token = ();
+      }
     }
-    push @curr_token, $token;
-    if (!$paren) {
-      push @tokens, join(' ', @curr_token);
-      @curr_token = ();
-    }
-  }
-  warn "urxvi: Mismatched parentheses in: $cmd" if $paren;
+  } while (($paren > 0) && $stream && ($cmd = <$stream>) && (chomp $cmd) && $line++);
+  warn "urxvi: $file:$line Mismatched parentheses" if $paren;
   my $result;
   $cmd = shift @tokens;
   if (defined($cmd)) {

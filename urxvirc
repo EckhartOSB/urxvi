@@ -1,7 +1,14 @@
 # Default key bindings for urxvi
 
+# define map in terms of bind
+(def map (key input)
+  (bind key
+    (push_input input)))
+
 # repeat count:
-bind 0 (or (push_repeat 0) (posx 0))
+bind 0 (or
+         (push_repeat 0)
+	 (posx 0))
 bind 1 (push_repeat 1)
 bind 2 (push_repeat 2)
 bind 3 (push_repeat 3)
@@ -15,36 +22,90 @@ bind 9 (push_repeat 9)
 # cursor movement:
 
 # functions that apply the repeat count
-def horz (cols) (move 0 (* (or repeat 1) cols))
-def vert (rows) (move (* (or repeat 1) rows))
+(def horz (cols)
+  (move 0 
+   (* 
+     (or repeat 1)
+     cols)))
+
+(def vert (rows)
+  (move 
+    (* 
+      (or repeat 1)
+      rows)))
 
 bind h (horz -1)
 bind j (vert 1)
 bind k (vert -1)
 bind l (horz 1)
-bind <Up> (vert -1)
-bind <Down> (vert 1)
-bind <Left> (horz -1)
-bind <Right> (horz 1)
+map <Up> k
+map <Down> j
+map <Left> h
+map <Right> l
 
-bind H (posy (+ view_start 1))
-bind L (posy (+ view_start (- page_size 1)))
+bind G (and
+         (posy
+	   (if repeat
+	     (+ repeat
+	       (- first_row 1))
+	     last_row))
+	 (posx ^))
 
-bind ^ (posx ^)
-bind $ (posx $)
-bind <Return> (and (vert 1) (posx ^))
+bind H (and
+	 (posy
+	   (+ view_start 1))
+	 (posx ^))
+
+bind L (and
+	 (posy
+	   (+
+	     view_start
+	     (- page_size 1)))
+	 (posx ^))
+
+bind '^' (posx ^)
+bind '$' (posx $)
+
+bind '+' (and
+	   (vert 1)
+	     (posx ^))
+
+bind '-' (and
+	   (vert -1)
+	     (posx ^))
+
+map <Return> '+'
 
 bind <Home> (posy first_row)
 bind <End> (posy last_row)
-bind <PageUp> (vert (- 2 page_size))
-bind <PageDown> (vert (- page_size 2))
-bind <C-b> (vert (- 2 page_size))
-bind <C-f> (vert (- page_size 2))
-bind <C-u> (vert (/ (- 2 page_size) 2))
-bind <C-d> (vert (/ (- page_size 2) 2))
+
+bind <PageUp> (vert
+		(- 2 page_size))
+bind <PageDown> (vert
+		  (- page_size 2))
+
+bind <C-b> (vert
+	     (- 2 page_size))
+
+bind <C-f> (vert
+	     (- page_size 2))
+
+bind <C-u> (vert
+	     (/
+	       (- 2 page_size)
+	       2))
+
+bind <C-d> (vert
+	     (/
+	       (- page_size 2)
+	       2))
 
 # selection
 bind v select
 
 # miscellaneous
 bind q quit
+
+bind <Esc> (if select_mode
+             select
+	     quit)
