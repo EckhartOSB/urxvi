@@ -153,6 +153,7 @@ sub on_start {
   $self->source(dirname(__FILE__) . "/urxvirc");
   $self->source($self->my_resource("rcfile") || "~/.urxvirc");
   $self->{repeat} = 0;		# repeat count for commands
+  $self->{onkeypress} = ();
 }
 
 sub define_keynames {
@@ -388,12 +389,14 @@ sub define_functions {
   };
   $functions->{onkeypress} = sub {
     my ($self, $lambda) = @_;
+    my $prev = $global_self->{onkeypress};
     if ($lambda) {
       my @keyhandler = ($self, $lambda);
       $global_self->{onkeypress} = \@keyhandler;
     } else {
       $global_self->{onkeypress} = ();
     }
+    @$prev[1] if $prev;
   };
   $functions->{or} = sub {
     my $self = shift;
