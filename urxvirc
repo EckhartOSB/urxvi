@@ -102,6 +102,15 @@ bind <C-d> (vert
 
 # selection
 bind v select
+bind y (if select_mode
+           select		# in select mode, just turn it off
+	   (onkeypress		# otherwise, hook the next key
+	     (lambda (key)
+	       onkeypress	# unhook keys
+	       select		# turn on select mode
+	       (push_key key)	# do the key
+	       select		# turn select mode off
+	       1))		# key handled
 
 # miscellaneous
 bind q quit

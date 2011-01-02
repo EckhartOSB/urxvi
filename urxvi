@@ -47,7 +47,6 @@ sub on_key_press {
       $keysym |= $meta;
       $self->eval_key($keysym);
     }
-    $self->update();
     return 1;
   }
   ()
@@ -64,14 +63,24 @@ sub on_key_release {
 sub eval_key {
   my ($self, $keysym) = @_;
   my $repeat = $self->{repeat};
-  if (my $keymap = $self->{keymap}->{"$keysym"}) {
-    my ($context, $cmd) = @$keymap;
-    $context->eval($cmd);
-  } else {
-    $self->scr_bell();
+  my $keyhandler = $self->{onkeypress};
+  my $handled = 0;
+  if ($keyhandler) {
+    my ($context, $body) = @$keyhandler;
+    my $func = $context->eval($body);
+    $handled = $context->$func($keysym);
+  }
+  if (!$handled) {
+    if (my $keymap = $self->{keymap}->{"$keysym"}) {
+      my ($context, $cmd) = @$keymap;
+      $context->eval($cmd);
+    } else {
+      $self->scr_bell();
+    }
   }
   # if the command didn't change repeat count, clear it.
   $self->{repeat} = 0 if ($self->{repeat} == $repeat);
+  $self->update();
 }
 
 sub metacode {
@@ -265,6 +274,12 @@ sub define_functions {
     my @keymap = ($self, $cmd);
     $global_self->{keymap}->{"$keysym"} = \@keymap;
   };
+  $functions->{call} = sub {
+    my $self = shift;
+    my $func = $self->eval(shift);
+    $global_self->debug_out($func);
+    $self->$func(@_);
+  };
   $functions->{cursor_row} = sub {
     my $self = shift;
     my ($crow, $ccol) = $global_self->screen_cur;
@@ -276,34 +291,17 @@ sub define_functions {
     $ccol;
   };
   $functions->{def} = sub {
-    my ($self, $name, $args, $body) = @_;
-    my @params = ();
-    while ($args =~ s/[ (]*(\w+)[ )]*//) {
-      push @params, $1;
-    }
-    $self->{functions}->{$name} = sub {
-      my @args = @_;
-      my $self = shift @args;
-      my $context = {};
-      bless $context;
-      $context->{functions} = {};
-      $context->{prev_context} = $self;
-      if ($self->{debug}) {
-	$context->{debug} = $self->{debug};
-	$context->{debug_indent} = $self->{debug_indent};
-      }
-      for (@params) {
-	my $arg = shift @args;
-	$self->debug_out("$_ => $arg\n");
-        $context->{functions}->{$_} = sub { $self->eval($arg) };
-      }
-      $context->eval($body);
-    }
+    my ($self, $name, $args, @body) = @_;
+    $self->{functions}->{$name} = $self->make_func($args, @body);
   };
   $functions->{first_row} = sub { $global_self->top_row; };
   $functions->{if} = sub {
     my ($self, $cond, $iftrue, $iffalse) = @_;
     ($self->eval($cond)) ? ($self->eval($iftrue)) : ($self->eval($iffalse))
+  };
+  $functions->{lambda} = sub {
+    my ($self, $args, @body) = @_;
+    $self->make_func($args, @body);
   };
   $functions->{last_column} = sub { $global_self->ncol-1; };
   $functions->{last_row} = sub { $global_self->nrow - 1; }; 
@@ -355,6 +353,15 @@ sub define_functions {
     }
     $global_self->screen_cur($crow, $ccol);
     \($crow, $ccol);
+  };
+  $functions->{onkeypress} = sub {
+    my ($self, $lambda) = @_;
+    if ($lambda) {
+      my @keyhandler = ($self, $lambda);
+      $global_self->{onkeypress} = \@keyhandler;
+    } else {
+      $global_self->{onkeypress} = ();
+    }
   };
   $functions->{or} = sub {
     my $self = shift;
@@ -412,6 +419,12 @@ sub define_functions {
     }
     \@_;
   };
+  $functions->{push_key} = sub {
+    my $self = shift;
+    for (@_) {
+      $global_self->eval_key($self->eval($_));
+    }
+  };
   $functions->{push_repeat} = sub {
     my $self = shift;
     my $digit = $self->eval(shift);
@@ -432,6 +445,36 @@ sub define_functions {
   $functions->{repeat} = sub { $global_self->{repeat} };
   $functions->{view_start} = sub { $global_self->view_start; };
   $global_self->{functions} = $functions;
+}
+
+sub make_func {
+  my ($self, $args, @body) = @_;
+  my @params = ();
+  while ($args =~ s/[ (]*(\w+)[ )]*//) {
+    push @params, $1;
+  }
+  sub {
+    my @args = @_;
+    my $self = shift @args;
+    my $context = {};
+    bless $context;
+    $context->{functions} = {};
+    $context->{prev_context} = $self;
+    if ($self->{debug}) {
+      $context->{debug} = $self->{debug};
+      $context->{debug_indent} = $self->{debug_indent};
+    }
+    for (@params) {
+      my $arg = shift @args;
+      $self->debug_out("$_ => $arg\n");
+      $context->{functions}->{$_} = sub { $self->eval($arg) };
+    }
+    my $rval;
+    for (@body) {
+      $rval = $context->eval($_);
+    }
+    $rval;
+  }
 }
 
 sub translate_keyname {
