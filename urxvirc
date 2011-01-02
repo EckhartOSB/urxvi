@@ -79,16 +79,14 @@ map <Return> '+'
 bind <Home> (posy first_row)
 bind <End> (posy last_row)
 
-bind <PageUp> (vert
-		(- 2 page_size))
-bind <PageDown> (vert
-		  (- page_size 2))
-
 bind <C-b> (vert
 	     (- 2 page_size))
 
 bind <C-f> (vert
 	     (- page_size 2))
+
+map <PageUp> <C-b>
+map <PageDown> <C-f>
 
 bind <C-u> (vert
 	     (/
