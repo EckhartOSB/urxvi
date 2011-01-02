@@ -101,9 +101,11 @@ bind <C-d> (vert
 	       2))
 
 # selection
-bind v (select_mode (not select_mode))	# toggle it
+bind v (select_mode (if select_mode '' 'char'))	# toggle it
+bind V (select_mode (if select_mode '' 'line'))
+
 bind y (if select_mode
-           (select_mode 0)		# in select mode, just turn it off
+           (select_mode '')		# in select mode, just turn it off
 	   (progn			# otherwise,
 	     (repeat repeat)		# keep the repeat count for later
 	     (onkeypress		# hook the next key
@@ -122,14 +124,16 @@ bind y (if select_mode
 			   1)))
 		     last_column)	# full width
 		   (progn		# if not y,
-		     (select_mode 1)	# turn on select mode
+		     (select_mode 'char')	# turn on select mode
 		     (push_key key)	# do the key
-		     (select_mode 0)))	# turn select mode off
+		     (select_mode '')))	# turn select mode off
 		 1))))			# key handled
 
 # miscellaneous
 bind q quit
 
 bind <Esc> (if select_mode
-             (select_mode 0)	# escape select mode
-	     quit)		# or urxvi altogether
+             (select_mode '')	# escape select mode
+	     (if selection
+	       select		# or clear any selection
+	       quit))		# or quit urxvi altogether

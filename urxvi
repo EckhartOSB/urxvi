@@ -25,7 +25,7 @@ sub on_user_command {
 			     );
 
       $urxvi->{status} = $status;
-      $urxvi->{select_mode} = 0;
+      $urxvi->{select_mode} = '';
       $self->{urxvi} = $urxvi;
       $self->update();
     }
@@ -115,6 +115,10 @@ sub update {
           (($srow < $crow) || (($srow == $crow) && ($scol <= $ccol))) ?
           ($srow, $scol, $crow, $ccol) :
 	  ($crow, $ccol, $srow, $scol);
+       if ($urxvi->{select_mode} eq 'line') {
+         $bcol = 0;
+	 $ecol = $self->ncol-1;
+       }
        $self->selection_beg($brow, $bcol);
        $self->selection_end($erow, $ecol);
        $self->selection_make($self->{last_event}->{time});
@@ -481,15 +485,12 @@ sub define_functions {
   $functions->{select} = sub {
     my $self = shift;
     my $urxvi = $global_self->{urxvi};
+    $urxvi->{select_mode} = '';
     my @args = map {$self->eval($_)} @_;
     if ((scalar @args) < 4) {
       @args = ();
-      if ($urxvi->{select_mode}) {
-        push @args, $global_self->selection_beg;
-	push @args, $global_self->selection_end;
-      }
+      $global_self->selection_clear();
     } else {
-      $urxvi->{select_mode} = 0;
       $global_self->selection_beg((@args[0], @args[1]));
       $global_self->selection_end((@args[2], @args[3]));
       $global_self->selection_make($global_self->{lastevent}->{time});
@@ -510,6 +511,7 @@ sub define_functions {
     }
     $old;
   };
+  $functions->{selection} = sub { $global_self->selection };
   $functions->{source} = sub { my $self = shift; $global_self->source(map {$self->eval($_)} @_) };
   $functions->{view_start} = sub { $global_self->view_start; };
   $global_self->{functions} = $functions;
