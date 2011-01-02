@@ -62,7 +62,7 @@ sub on_key_release {
 
 sub eval_key {
   my ($self, $keysym) = @_;
-  my $repeat = $self->{repeat};
+  $self->{repeat_touched} = 0;
   my $keyhandler = $self->{onkeypress};
   my $handled = 0;
   if ($keyhandler) {
@@ -78,8 +78,8 @@ sub eval_key {
       $self->scr_bell();
     }
   }
-  # if the command didn't change repeat count, clear it.
-  $self->{repeat} = 0 if ($self->{repeat} == $repeat);
+  # if the command didn't set repeat count, clear it.
+  $self->{repeat} = 0 if !($self->{repeat_touched});
   $self->update();
 }
 
@@ -294,7 +294,19 @@ sub define_functions {
     my ($self, $name, $args, @body) = @_;
     $self->{functions}->{$name} = $self->make_func($args, @body);
   };
+  $functions->{eq} = sub {
+    my $self = shift;
+    $self->eval(shift) eq $self->eval(shift);
+  };
   $functions->{first_row} = sub { $global_self->top_row; };
+  $functions->{ge} = sub {
+    my $self = shift;
+    $self->eval(shift) ge $self->eval(shift);
+  };
+  $functions->{gt} = sub {
+    my $self = shift;
+    $self->eval(shift) gt $self->eval(shift);
+  };
   $functions->{if} = sub {
     my ($self, $cond, $iftrue, $iffalse) = @_;
     ($self->eval($cond)) ? ($self->eval($iftrue)) : ($self->eval($iffalse))
@@ -305,6 +317,14 @@ sub define_functions {
   };
   $functions->{last_column} = sub { $global_self->ncol-1; };
   $functions->{last_row} = sub { $global_self->nrow - 1; }; 
+  $functions->{le} = sub {
+    my $self = shift;
+    $self->eval(shift) le $self->eval(shift);
+  };
+  $functions->{lt} = sub {
+    my $self = shift;
+    $self->eval(shift) lt $self->eval(shift);
+  };
   $functions->{max} = sub {
     my $self = shift;
     my $result = $self->eval(shift);
@@ -353,6 +373,14 @@ sub define_functions {
     }
     $global_self->screen_cur($crow, $ccol);
     \($crow, $ccol);
+  };
+  $functions->{ne} = sub {
+    my $self = shift;
+    $self->eval(shift) ne $self->eval(shift);
+  };
+  $functions->{not} = sub {
+    my $self = shift;
+    !($self->eval(shift));
   };
   $functions->{onkeypress} = sub {
     my ($self, $lambda) = @_;
@@ -408,6 +436,14 @@ sub define_functions {
     }
     $success;
   };
+  $functions->{progn} = sub {
+    my $self = shift;
+    my $result;
+    for (@_) {
+      $result = $self->eval($_);
+    }
+    $result;
+  };
   $functions->{push_input} = sub {
     my $self = shift;
     for (@_) {
@@ -429,20 +465,52 @@ sub define_functions {
     my $self = shift;
     my $digit = $self->eval(shift);
     $global_self->{repeat} = ($global_self->{repeat} * 10) + $digit;
+    $global_self->{repeat_touched} = 1;
     $global_self->{repeat};
   };
   $functions->{quit} = sub { $global_self->{urxvi} = (); 1;};
+  $functions->{repeat} = sub {
+    my ($self, $new) = @_;
+    my $old = $global_self->{repeat};
+    if ($new) {
+      $global_self->{repeat} = $self->eval($new);
+      $global_self->{repeat_touched} = 1;
+    }
+    $old;
+  };
   $functions->{select} = sub {
     my $self = shift;
     my $urxvi = $global_self->{urxvi};
-    if ($urxvi->{select_mode} ^= 1) {  # toggle
-      my @anchor = $global_self->screen_cur;
-      $urxvi->{select_anchor} = \@anchor;
+    my @args = map {$self->eval($_)} @_;
+    if ((scalar @args) < 4) {
+      @args = ();
+      if ($urxvi->{select_mode}) {
+        push @args, $global_self->selection_beg;
+	push @args, $global_self->selection_end;
+      }
+    } else {
+      $urxvi->{select_mode} = 0;
+      $global_self->selection_beg((@args[0], @args[1]));
+      $global_self->selection_end((@args[2], @args[3]));
+      $global_self->selection_make($global_self->{lastevent}->{time});
     }
+    \@args;
   };
-  $functions->{select_mode} = sub { my $urxvi = $global_self->{urxvi}; $urxvi->{select_mode} if $urxvi; };
-  $functions->{source} = sub { my $self = shift; $global_self->source(map($self->eval, @_)) };
-  $functions->{repeat} = sub { $global_self->{repeat} };
+  $functions->{select_mode} = sub {
+    my $self = shift;
+    my $urxvi = $global_self->{urxvi};
+    my $old = $urxvi->{select_mode};
+    my $new = shift;
+    if (defined($new)) {
+      if ($new = $self->eval($new)) {
+	my @anchor = $global_self->screen_cur;
+	$urxvi->{select_anchor} = \@anchor;
+      }
+      $urxvi->{select_mode} = $new;
+    }
+    $old;
+  };
+  $functions->{source} = sub { my $self = shift; $global_self->source(map {$self->eval($_)} @_) };
   $functions->{view_start} = sub { $global_self->view_start; };
   $global_self->{functions} = $functions;
 }
@@ -523,7 +591,7 @@ sub eval {
   $self->debug_indent;
   do {
     $self->debug_out("eval: $cmd\n");
-    while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^ #()]*)//) {	# consume a token
+    while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^\s#()]*)//) {	# consume a token
       my $token = $1;
       last if ($token eq '#');			# comment
       if ($token eq '(') {			# parenthesized expression

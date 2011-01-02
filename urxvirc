@@ -101,20 +101,35 @@ bind <C-d> (vert
 	       2))
 
 # selection
-bind v select
+bind v (select_mode (not select_mode))	# toggle it
 bind y (if select_mode
-           select		# in select mode, just turn it off
-	   (onkeypress		# otherwise, hook the next key
-	     (lambda (key)
-	       onkeypress	# unhook keys
-	       select		# turn on select mode
-	       (push_key key)	# do the key
-	       select		# turn select mode off
-	       1))		# key handled
+           (select_mode 0)		# in select mode, just turn it off
+	   (progn			# otherwise,
+	     (repeat repeat)		# keep the repeat count for later
+	     (onkeypress		# hook the next key
+	       (lambda (key)
+		 onkeypress		# unhook subsequent keys
+		 (if (eq key 121)	# y
+		   (select		# select lines
+		     cursor_row		# begin with the current line
+		     0			# leftmost column
+		     (min
+		       last_row		# not beyond last row
+		       (+ 
+			 cursor_row	# use repeat count for number of rows
+			 (-
+			   (or repeat 1)
+			   1)))
+		     last_column)	# full width
+		   (progn		# if not y,
+		     (select_mode 1)	# turn on select mode
+		     (push_key key)	# do the key
+		     (select_mode 0)))	# turn select mode off
+		 1))))			# key handled
 
 # miscellaneous
 bind q quit
 
 bind <Esc> (if select_mode
-             select
-	     quit)
+             (select_mode 0)	# escape select mode
+	     quit)		# or urxvi altogether
