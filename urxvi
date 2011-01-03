@@ -467,6 +467,7 @@ sub define_functions {
     for (@_) {
       $global_self->eval_key($self->eval($_));
     }
+    \@_;
   };
   $functions->{push_repeat} = sub {
     my $self = shift;
