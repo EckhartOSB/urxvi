@@ -1,0 +1,562 @@
+﻿Slips	Sloppy Lisp
+
+by Chip Camden
+January, 2011
+
+The Slips language is loosely based on various Lisp dialects,
+but its syntax is considerably relaxed to make it more natural
+for use in the rc files of the urxvi Perl extension
+(http://chipstips.com/?tag=plurxvi) for the rxvt-unicode X11
+terminal (aka urxvt, http://software.schmorp.de/pkg/rxvt-unicode.html).
+
+The biggest syntactical differences between Slips and most Lisp
+flavors include:
+
+- # as a comment character
+- parentheses may be omitted if not required for grouping
+- end-of-line terminates a statement, if all parentheses are matched
+- strings do not have to be quoted, unless they contain special characters
+- late binding of arguments is presumed
+
+Thus, for example, the simple command:
+
+bind q quit
+
+which binds the 'q' key to the 'quit' command, would under strict Lisp
+syntax be something like:
+
+(bind "q" #'quit)
+
+This simplification of punctuation necessarily limits the expressiveness
+of Slips -- but we aren't trying to create artifical intelligence here.
+
+Currently, Slips' syntax is limited to features that are useful for urxvi --
+although that feature set may be extended in the future.  For instance,
+Slips almost completely lacks functions for manipulating lists.  For 
+that reason, I almost called it "", for "Lisp without list processing",
+but I decided that name was a little too hard to pronounce.  Instead, I went
+with the self-referential "Slips", for "Sloppy Lisp".
+
+Because Slips is written in Perl (following the true pattern of the universe
+http://xkcd.com/224/), its understanding of types conforms to Perl's --
+except that the penchant to treat everything as a string is perhaps even
+more pronounced.  All arguments begin life as strings in Slips, and only
+become numbers (or other things) as they are coerced by the operations
+performed on them.
+
+
+BUILT-IN FUNCTIONS
+
+The following sections document each of the built-in Slips functions, in
+ASCII order.  The syntax for each command is shown in parentheses,
+although as mentioned above they arfen't always required.  When a token
+may be repeated, it is followed by an ellipsis (...).  Optional tokens
+are enclosed in [].  The symbol => separates the syntactic form from its
+return value.
+
+Many of these functions require row and/or column numbers as arguments.
+Unless otherwise specified, column 0 is the leftmost column, and row 0
+is the first row of the last screenful of rows.  Rows in the scrollback
+buffer have negative row numbers.
+
+This section includes functions that are defined in the supplied urxvirc.
+These are noted accordingly.
+
+-------------------------------------------------------------------------------
+
+$ -- Last non-blank character position
+
+($ [row]) => number
+
+Returns the column position of the first non-whitespace character in
+the row specified by the row argument (cursor_row if unspecified).
+If the row contains no non-blank characters, 0 is returned.
+
+-------------------------------------------------------------------------------
+
+* -- Numeric multiplication
+
+(* operand...) => number
+
+Multiplies all of the operands and returns the result.
+
+-------------------------------------------------------------------------------
+
++ -- Numeric addition
+
+(+ operand...) => number
+
+Adds all of the operands and returns the result.
+
+-------------------------------------------------------------------------------
+
+- -- Numeric substraction
+
+(- operand...) => number
+
+Subtracts the second and following operands from the first, and returns
+the result.
+
+-------------------------------------------------------------------------------
+
+/ -- Numeric division
+
+(/ operand...) => number
+
+Divides the first operand by each successive operand, and returns the
+result.
+
+-------------------------------------------------------------------------------
+
+^ -- First non-blank character position
+
+(^ [row]) => number
+
+Computes the column position of the first non-whitespace character in the
+row specified (cursor_row if not specified).  Returns 0 if the row contains
+no non-blank characters.
+
+-------------------------------------------------------------------------------
+
+and - Boolean AND
+
+(and operand...) => operand
+
+Evaluates each operand until one of them yields a false result, and returns it.
+If none of the operands yield false, returns the last operand.
+
+-------------------------------------------------------------------------------
+
+bind - Bind a key to a Slips command
+
+(bind key cmd) => mapping
+
+Binds the key specified in the key argument to the Slips command specified by
+cmd.  Possible values for the key specification can be found in the section
+entitled KEY NAMES below.
+
+-------------------------------------------------------------------------------
+
+call - Call a function anonymously
+
+(call function arg...) => result
+
+Calls a function (constructed by the "lambda" or "def" command), passing it the
+arg parameters, and returning its result.
+
+-------------------------------------------------------------------------------
+
+cursor_column - Cursor column position
+
+(cursor_column) => number
+
+Returns the current column position of the cursor.  To move the cursor, see
+the move, posx, and posy functions.
+
+-------------------------------------------------------------------------------
+
+cursor_row - Cursor row position
+
+(cursor_row) => number
+
+Returns the current row position of the cursor.  To move the cursor, see the
+move, posx, and posy functions.
+
+------------------------------------------------------------------------------
+
+def - Define a new function
+
+(def name (arg...) cmd...) => function
+
+Creates a new function named name, which takes the arguments specified by
+(arg...) and executes the commands specified by the cmd arguments, returning
+the result of the last cmd.  The def function itself returns a function that
+may be passed to the "call" command, but it's probably more useful to call 
+the function by its name.  For anonymous functions, see "lambda".
+
+If a function alreasdy exists with the specified name, it will be replaced --
+even if it is a built-in function.
+
+-----------------------------------------------------------------------------
+
+eq - String equality
+
+(eq op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's eq operator, and returns
+the result.
+
+----------------------------------------------------------------------------
+
+first_row - First row in the terminal window
+
+(first_row) => number
+
+Returns the row number of the first accessible row in the window.  This will
+be negative if any text has been scrolled out of the window, otherwise 0.
+
+-----------------------------------------------------------------------------
+
+ge - String greater-than-or-equal
+
+(ge op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's ge operator, and returns
+the result.
+
+-----------------------------------------------------------------------------
+
+gt - String greater-than
+
+(gt op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's gt operator, and returns
+the result.
+
+-----------------------------------------------------------------------------
+
+horz - Move the cursor horizontally
+
+(horz cols) => array
+
+Moves the cursor by the number of columns specified times the repeat count,
+if any is in effect.
+
+Defined in the supplied version of urxvirc.
+
+-----------------------------------------------------------------------------
+
+if - Conditional branch
+
+(if cond iftrue [iffalse]) => result
+
+Evaluates cond for truth.  If true, evaluates and returns iftrue.  Otherwise,
+evaluates and returns iffalse.
+
+-----------------------------------------------------------------------------
+
+lambda - Define an anonymous function
+
+(lambda (arg...) cmd...) => function
+
+Creates a new unnamed function that takes the specified arguments, evaluates
+each of the cmds and returnsa the result of the last one.  The lambda function
+itself returns the created function, which may be passed to the "call" function,
+or to any event that requires a function.  See "onkeypress".
+
+----------------------------------------------------------------------------
+
+last_column - The rightmost visible column
+
+(last_column) => number
+
+Returns the column number of the rightmost column in the terminal window,
+including columns in which no text has yet been displayed.
+
+----------------------------------------------------------------------------
+
+last_row - The last row
+
+(last_row) => number
+
+Returns the row number of the bottom row of the terminal window, including
+rows in which no text has yet been displayed.
+
+-----------------------------------------------------------------------------
+
+le - String less-than-or-equal
+
+(le op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's le operator, and returns
+the result.
+
+-----------------------------------------------------------------------------
+
+lt - String less-than
+
+(lt op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's lt operator, and returns
+the result.
+
+------------------------------------------------------------------------------
+
+map - Map a key to an input series
+
+(map key input) => array
+
+binds the key specified by key to push the input characters contained in
+input.  See the section on KEY NAMES for the possible values of key and
+input.
+
+Defined in the supplied version of urxvirc.
+
+------------------------------------------------------------------------------
+
+max - Maximum value
+
+(max operand...) => operand
+
+Returns the operand whose value is numerically the greatest.
+
+-----------------------------------------------------------------------------
+
+min - Minimum value
+
+(min operand...) => operand
+
+Returns the operand whose value is numerically the least.
+
+-----------------------------------------------------------------------------
+
+move - Move the cursor relative to the current position
+
+(move nrows [ncols]) => array
+
+Moves the cursor the specified number of rows and/or columns from its current
+position.  Negative values move up/left, positive move down/right.  Movement
+is limited to the available rows and columns in the window.  If the new row
+is not visible, the view will be scrolled to make that row visible.
+
+The returned array contains the new row and column, but we don't yet have
+a function for extracting those.
+
+-----------------------------------------------------------------------------
+
+ne - String not-equal
+
+(ne op1 op2) => boolean
+
+Compares the evaluation of both operands using Perl's ne operator, and returns
+the result.
+
+------------------------------------------------------------------------------
+
+not - Invert a boolean result
+
+(not operand) => boolean
+
+Returns the reverse of the boolean sense of operand.
+
+-----------------------------------------------------------------------------
+
+onkeypress - Capture subsequent key press events
+
+(onkeypress [function]) => function
+
+Binds a function to the onkeypress event, returning the previously bound
+function, if any.  If no function is passed, then the event is unbound.
+
+The function can be created with "lambda" or "def".  It must take one
+argument, which is the keysym value of the key pressed.  If this function
+returns a true value, then the key will not be processed further.  Otherwise,
+it will be handled normally.
+
+-------------------------------------------------------------------------------
+
+or - Boolean OR
+
+(or operand...) => operand
+
+Evaluates each operand until one of them yields a true result, and returns it.
+If none of the operands yield truth, returns a false result.
+
+-------------------------------------------------------------------------------
+
+page_size - Number of rows in a page
+
+(page_size) => number
+
+Returns the number of rows in the terminal window.  This is actually one
+greater than the number of visible rows, because of urxvi's status row display.
+It is also always one greater than the result of (last_row).
+
+------------------------------------------------------------------------------
+
+posx - Position the cursor to an absolute column
+
+(posx column) => boolean
+
+Attempts to place the cursor at the specified column.  If the column number is
+invalid (less than 0 or greater than last_column), returns false without moving
+the cursor.  Otherwise, returns true.
+
+------------------------------------------------------------------------------
+
+posy - Position the cursor to an absolute row
+
+(posy row) => boolean
+
+Attempts to place the cursor at the specified row.  If the row number is invalid
+(less than first_row or greater than last_row), returns false without moving the
+cursor.  Otherwise, returns true.
+
+-----------------------------------------------------------------------------
+
+progn - Perform multiple commands
+
+(progn cmd...) => result
+
+Evaluates each cmd argument in turn, returning the result of the last one.
+
+----------------------------------------------------------------------------
+
+push_input - Feed input characters to urxvi
+
+(push_input string...) => array
+
+Interprets each string as a series of keys to simulate in turn.  See the
+section on KEY NAMES for possible values.  Returns all arguments.
+
+-----------------------------------------------------------------------------
+
+push_key - Feed input keysyms to urxvi
+
+(push_key key...) => array
+
+Interprets each key as a numeric keysym value to simulate in turn.  Returns
+all arguments.
+
+------------------------------------------------------------------------------
+
+push_repeat - Add a digit to the repeat count
+
+(push_repeat digit) => number
+
+Adds the digit to the current repeat count, and returns the new repeat count.
+For example, if the old repeat count was 2, pushing a 1 would yield 21.  When
+no repeat count has been started, the value is 0, so the first digit pushed
+yields that number.
+
+------------------------------------------------------------------------------
+
+quit - Exit urxvi
+
+(quit) => 1
+
+Returns the terminal window to its normal input state.
+
+------------------------------------------------------------------------------
+
+repeat - Set/get repeat count
+
+(repeat [new]) => number
+
+If new is specified, sets the repeat count to that value.  Always returns the
+previous repeat count.  Note that the repeat count is usually cleared after
+every keystroke.  However, if you touch it via the "repeat" or "push_repeat"
+commands, then it will be preserved for the next keystroke.
+
+------------------------------------------------------------------------------
+
+select - Select a region
+
+(select [brow, bcol, erow, ecol]) => array
+
+If all four arguments are passed, then the text from the beginning row/column
+to the ending row/column will be selected.  Otherwise, any selection will be
+cleared.  The returned array contains the coordinates of the resulting selection,
+but currenly Slips offers no way to extract those values.
+
+-----------------------------------------------------------------------------
+
+select_mode - Set/get the selection mode
+
+(select_mode [new]) => string;
+
+If new is specified, then the selection mode will be set as follows:
+if new is 'line', line-wise selection; any other true value, character-wise
+selection; any false value, no selection.
+
+The previous selection mode is returned.
+
+------------------------------------------------------------------------------
+
+selection - Get the currently selected text, if any
+
+(selection) => string
+
+Returns the currently selected text, or a false value if no text is selected.
+
+------------------------------------------------------------------------------
+
+source - Read commands from additional files
+
+(source file...) => boolean
+
+Attempts to read and evaluate commands from each of the file arguments in
+turn, returning a true value if the last one could be read, otherwise a
+false value.
+
+Each file name will be globbed.
+
+------------------------------------------------------------------------------
+
+vert - Move the cursor vertically
+
+(vert rows)
+
+Moves the cursor vertically based on the specified rows, times any repeat
+count that may be in effect.
+
+Defined in the supplied version of urxvirc.
+
+------------------------------------------------------------------------------
+
+view_start - First visible row
+
+(view_start) => number
+
+Returns the row number of the first visible row.  If the view is not scrolled
+back, this will be 0.  Otherwise, it will be a negative number.
+
+------------------------------------------------------------------------------
+
+
+KEY NAMES
+
+The names of keys specified in the "bind", "push_input", and "map" commands
+generally agree with key specifications in vi's "map" command.  A single
+character corresponds to the key used to create it, like "A" or "z".  Special
+tokens enclosed in <> have the following meanings:
+
+<BS> = backspace (0xff08)
+<Tab> = tab (0xff09)
+<NL> = Newline (0xff0a)
+<FF> = Form feed (0xff0c)
+<CR>, <Return>, <Enter> = Carriage return (0xff0d)
+<Esc> = Escape (0xff1b)
+<Space> = space (0x20)
+<Del> = Delete (0xffff)
+<Up> = Up arrow (0xff52)
+<Down> = Down arrow (0xff54)
+<Left> = Left arrow (0xff51)
+<Right> = Right arrrow (0xff53)
+<F1>..<F12> = F1..F12 (0xffbe..0xffc9)
+<Insert> = Insert (0xff63)
+<Home> = Home (0xff50)
+<End> = End (0xff57)
+<PageUp> = Page Up (0xff55)
+<PageDown> = Page Down (0xff56)
+<kHome> = Keypad Home (0xff95)
+<kEnd> = Keypad End (0xff9c)
+<kPageUp> = Keypad Page Up (0xff9a)
+<kPageDown> = Keypad Page Down (0xff9b)
+<kPlus> = Keypad Plus (0xffab)
+<kMinus> = Keypad Minus (0xffad)
+<kMultiply> = Keypad Multiply (0xffaa)
+<kDivide> = Keypad Divide (0xffaf)
+<kEnter> = Keypad Enter (0xff8d)
+<kPoint> = Keypad Period (0xffae)
+<k0>..<k9> = Keypad 0..9 (0xffb0..0xffb9)
+
+Any of the above can include one or more prefixes to indicate a shift state:
+
+S- = Shift
+C- = Ctrl
+M- = Mod4 (typically the Windows key)
+A- = Alt
+
+For example, <A-F1> would be the F1 key while Alt is down.
+<C-S-Enter> would be Ctrl+Shift+Enter.

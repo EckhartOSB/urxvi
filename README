@@ -1,0 +1,102 @@
+NAME	urxvi
+
+SITE	http://chipstips.com/?tag=plurxvi
+	http://bitbucket.org/sterlingcamden/urxvi
+
+AUTHOR	Chip Camden
+
+DATE	January, 2011
+
+DESCRIPTION
+
+Perl extension for rxvt-unicode (aka urxvt) to enable the user to
+navigate the terminal window using the keyboard.  The supplied urxvirc
+file implements key bindings similar to the default bindings for vi
+for cursor movement and text selection.
+
+INSTALLATION
+
+See the man page for urxvtperl(3) for a full discussion of Perl
+extensions.  Enable this extension using one of the methods documented
+there.  For example, you could place the script urxvi in
+/usr/local/lib/urxvt/perl, then add the following to .Xdefaults:
+
+URxvt.perl-ext: default,urxvi
+URxvt.keysym.0xff14:	  perl:urxvi
+
+This binds the Scroll Lock key to enable urxvi's functionality.
+
+
+OPERATION
+
+On initialization, this extension first tries to load any "urxvirc" file found
+in the same directory as the "urxvi" script itself.  No error occurs if this
+file cannot be found.  Next, any script specified by the resource
+URxvt.urxvi.rxfile will be loaded -- again, silently failing if not found.
+
+Once the extension is invoked vie the "urxvi" user command, the extension
+captures all keyboard input to the terminal window until either a 'quit'
+command is executed or the 'urxvi' user command is repeated.  
+
+The supplied version of urxvirc provides the following key bindings:
+
+0		move to beginning of line, unless a repeat-count has been started
+		(in which case it adds the 0 to the repeat-count).
+1-9		add the digit to the repeat-count.
+h, <Left>	move (repeat-count or 1) columns left.
+j, <Down>	move (repeat-count or 1) rows down.
+k, <Up>		move (repeat-count or 1) rows up.
+l, <Right>	move (repeat-count or 1) columns right.
+G		move to the beginning of the (repeat-count or last) absolute row.
+		(For most commands, rows start at 0 for the final screen-full as
+		in urxvt's API, with negative numbers for scrollback rows.  In this
+		command, however, they begin at 1 for the first known row.)
+H		move to the beginning of the first visible row.
+L		move to the beginning of the last visible row.
+^		move to the first non-space character on the current row.
+$		move to the last non-space character on the current row.
++, <Return>	move to the beginning of the (current + (repeat-count or 1)) row.
+-		move to the beginning of the (current - (repeat-count or 1)) row.
+<Home>		move to the first row.
+<End>		move to the last row.
+<C-b>, <PageUp> move (repeat-count or 1) pages up.
+<C-f>, <PageDown> move (repeat-count or 1) pages down.
+<C-u>		move (repeat-count or 1) half pages up.
+<C-d>		move (repeat-count or 1) half pages down.
+v		toggle character-wise selection mode.
+V		toggle line-wise selection mode.
+y		if in selection mode, exit selection mode (leaving text selected)
+		otherwise, wait for the next key.  If another y, select (repeat-count or 1)
+		lines, starting with the current line.  For any other character, execute
+		that movement in select mode, then turn off select mode.
+q		quit urxvi
+<Esc>		if in selection mode, exit selection mode (leaving text selected)
+		otherwise, if any text is selected, clear the selection
+		otherwise, quit urxvi.
+
+When in selection mode, every cursor movement selects the text between the selection anchor
+(where selection was initiated) and the current cursor position.  There are two selection
+modes, "line" and "char".  The former selects whole lines, while the latter selects from/to
+row/column pairs.  Selected text is immediately copied to the clipboard, as it would be if
+you performed the same selection with the mouse.
+
+
+SYNTAX
+
+The urxvirc file and any user-supplied rc files contain commands in a simple S-expression
+syntax that I like to call Slips (for "Sloppy Lisp").  See the file SLIPS-REFERENCE for full syntax.
+The provided urxvirc file can serve as a good set of examples.
+
+
+RESOURCES
+
+This extension uses the following resources:
+
+URxvt.urxvi.debug
+
+	If set to "on", then debugging message will be sent to urxvt's stdout.
+	These messages can be useful for debugging the syntax of your rc file.
+
+URxvt.urxvi.rcfile
+
+	If set, this resource specifies the path to an rcfile to evaluate.
