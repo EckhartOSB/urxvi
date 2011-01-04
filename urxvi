@@ -1,6 +1,10 @@
 #! perl
 
+# Author: Chip Camden <sterling@camdensoftware.com>
+
+
 use File::Basename;
+require Term::Cap;
 
 use constant {
   MK_SHIFT   => 0x00010000,
@@ -9,16 +13,20 @@ use constant {
   MK_ALT     => 0x00080000,
 };
 
-# Author: Chip Camden <sterling@camdensoftware.com>
-
 sub on_user_command {
   my ($self, $cmd) = @_;
   if ($cmd =~ s/^urxvi\b//) {
     if ($self->{urxvi}) {
-      $self->{urxvi} = ();
+      $self->quit;
     } else {
       my $urxvi = {};
       my $status = {};
+      my $terminal = Tgetent Term::Cap;
+      # turn the cursor on
+      $self->cmd_parse($self->locale_encode($terminal->Tputs('ve')));
+      my @cursor = $self->screen_cur;
+      $self->{cursor_pos} = \@cursor;
+      $self->{view_start} = $self->view_start;
       $status->{rend} = urxvt::OVERLAY_RSTYLE;
       $status->{window} = $self->overlay(
 			     0, 0, $self->ncol, 1, $status->{rend}, 0
@@ -58,6 +66,13 @@ sub on_key_release {
     $self->{metakeys} &= ~($self->metacode($keysym));
   }
   $self->{urxvi};
+}
+
+sub quit {
+  my $self = shift;
+  $self->{urxvi} = ();
+  $self->view_start($self->{view_start});
+  $self->screen_cur(@{ $self->{cursor_pos} });
 }
 
 sub eval_key {
@@ -476,7 +491,7 @@ sub define_functions {
     $global_self->{repeat_touched} = 1;
     $global_self->{repeat};
   };
-  $functions->{quit} = sub { $global_self->{urxvi} = (); 1;};
+  $functions->{quit} = sub { my $self = shift; $self->quit; };
   $functions->{repeat} = sub {
     my ($self, $new) = @_;
     my $old = $global_self->{repeat};
