@@ -140,6 +140,9 @@ sub update {
        $sts .= " | Select $brow,$bcol..$erow,$ecol";
     }
     $sts .= " | Repeat: $self->{repeat}" if $self->{repeat};
+    my $msg = $self->{message};
+    $sts .= " | $msg" if $msg;
+    $self->{message} = ();
     my $rem = $self->ncol - $self->strwidth($sts);
     $sts .= (' ' x $rem) if $rem > 0;
     $w->set(0,0,$sts);
@@ -288,6 +291,12 @@ sub define_functions {
     }
     $rval;
   };
+  $functions->{append} = sub {
+    my $self = shift;
+    my @rslt = ();
+    for (@_) { push @rslt, @{$self->eval($_)}; }
+    \@rslt;
+  };
   $functions->{bind} = sub {
     my ($self, $key, $cmd) = @_;
     my $keysym = $global_self->translate_keyname($self->eval($key));
@@ -341,6 +350,11 @@ sub define_functions {
     my $self = shift;
     $self->eval(shift) le $self->eval(shift);
   };
+  $functions->{list} = sub {
+    my $self = shift;
+    my @array = map { $self->eval($_) } @_;
+    \@array;
+  };
   $functions->{lt} = sub {
     my $self = shift;
     $self->eval(shift) lt $self->eval(shift);
@@ -353,6 +367,10 @@ sub define_functions {
         $result = $next if ($next > $result);
     }
     $result;
+  };
+  $functions->{message} = sub {
+    my $self = shift;
+    $global_self->{message} = join(' ', map {$self->eval($_)} @_);
   };
   $functions->{min} = sub {
     my $self = shift;
@@ -401,6 +419,11 @@ sub define_functions {
   $functions->{not} = sub {
     my $self = shift;
     !($self->eval(shift));
+  };
+  $functions->{nth} = sub {
+    my ($self, $n, $list) = @_;
+    my @array = @{$self->eval($list)};
+    @array[$self->eval($n)];
   };
   $functions->{onkeypress} = sub {
     my ($self, $lambda) = @_;

@@ -31,11 +31,8 @@ This simplification of punctuation necessarily limits the expressiveness
 of Slips -- but we aren't trying to create artifical intelligence here.
 
 Currently, Slips' syntax is limited to features that are useful for urxvi --
-although that feature set may be extended in the future.  For instance,
-Slips almost completely lacks functions for manipulating lists.  For 
-that reason, I almost called it "", for "Lisp without list processing",
-but I decided that name was a little too hard to pronounce.  Instead, I went
-with the self-referential "Slips", for "Sloppy Lisp".
+although that feature set may be extended in the future.  I therefore decided
+to give it the self-referential name "Slips", for "Sloppy Lisp".
 
 Because Slips is written in Perl (following the true pattern of the universe
 http://xkcd.com/224/), its understanding of types conforms to Perl's --
@@ -124,6 +121,15 @@ and - Boolean AND
 
 Evaluates each operand until one of them yields a false result, and returns it.
 If none of the operands yield false, returns the last operand.
+
+-------------------------------------------------------------------------------
+
+append - Append arrays
+
+(append array...) => array
+
+Concatenates the contents of all array arguments into a single array.  If
+an argument is not an array, an error occurs.
 
 -------------------------------------------------------------------------------
 
@@ -220,7 +226,7 @@ horz - Move the cursor horizontally
 (horz cols) => array
 
 Moves the cursor by the number of columns specified times the repeat count,
-if any is in effect.
+if any is in effect.  Returns an array with the new position (row col).
 
 Defined in the supplied version of urxvirc.
 
@@ -273,6 +279,15 @@ the result.
 
 -----------------------------------------------------------------------------
 
+list - Construct an array
+
+(list element...) => array
+
+Creates and returns an array composed of all elements.  If an element is
+itself an array, it becomes a nested array.
+
+-----------------------------------------------------------------------------
+
 lt - String less-than
 
 (lt op1 op2) => boolean
@@ -288,7 +303,7 @@ map - Map a key to an input series
 
 binds the key specified by key to push the input characters contained in
 input.  See the section on KEY NAMES for the possible values of key and
-input.
+input.  Returns (input).
 
 Defined in the supplied version of urxvirc.
 
@@ -299,6 +314,16 @@ max - Maximum value
 (max operand...) => operand
 
 Returns the operand whose value is numerically the greatest.
+
+-----------------------------------------------------------------------------
+
+message - display a message in the status line
+
+(message operand...) => string
+
+Evaluates all operands, joins their string representations together,
+separated by spaces, and displays the result in the status line until
+the next keystroke by the user.  Returns the constructed string.
 
 -----------------------------------------------------------------------------
 
@@ -319,8 +344,7 @@ position.  Negative values move up/left, positive move down/right.  Movement
 is limited to the available rows and columns in the window.  If the new row
 is not visible, the view will be scrolled to make that row visible.
 
-The returned array contains the new row and column, but we don't yet have
-a function for extracting those.
+Returns the new position (row col).
 
 -----------------------------------------------------------------------------
 
@@ -338,6 +362,16 @@ not - Invert a boolean result
 (not operand) => boolean
 
 Returns the reverse of the boolean sense of operand.
+
+-----------------------------------------------------------------------------
+
+nth - Return an element from an array
+
+(nth array index) => element
+
+Evaluates index as a number and returns that element from array.  If array is
+not an array, an error occurs.  If the index is out of bounds, a null value
+is returned.
 
 -----------------------------------------------------------------------------
 
@@ -376,21 +410,21 @@ It is also always one greater than the result of (last_row).
 
 posx - Position the cursor to an absolute column
 
-(posx column) => boolean
+(posx column) => array
 
 Attempts to place the cursor at the specified column.  If the column number is
 invalid (less than 0 or greater than last_column), returns false without moving
-the cursor.  Otherwise, returns true.
+the cursor.  Otherwise, returns the new position as an array (row col).
 
 ------------------------------------------------------------------------------
 
 posy - Position the cursor to an absolute row
 
-(posy row) => boolean
+(posy row) => array
 
 Attempts to place the cursor at the specified row.  If the row number is invalid
 (less than first_row or greater than last_row), returns false without moving the
-cursor.  Otherwise, returns true.
+cursor.  Otherwise, returns the new position as an array (row col).
 
 -----------------------------------------------------------------------------
 
@@ -452,12 +486,12 @@ commands, then it will be preserved for the next keystroke.
 
 select - Select a region
 
-(select [brow, bcol, erow, ecol]) => array
+(select [brow bcol erow ecol]) => array
 
 If all four arguments are passed, then the text from the beginning row/column
 to the ending row/column will be selected.  Otherwise, any selection will be
-cleared.  The returned array contains the coordinates of the resulting selection,
-but currenly Slips offers no way to extract those values.
+cleared.  The returned array contains the coordinates of the resulting selection
+(brow bcol erow ecol).
 
 -----------------------------------------------------------------------------
 
