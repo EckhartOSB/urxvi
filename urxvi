@@ -309,15 +309,40 @@ sub define_functions {
     $global_self->debug_out($func);
     $self->$func(@_);
   };
-  $functions->{cursor_row} = sub {
-    my $self = shift;
-    my ($crow, $ccol) = $global_self->screen_cur;
-    $crow;
-  };
   $functions->{cursor_column} = sub {
     my $self = shift;
     my ($crow, $ccol) = $global_self->screen_cur;
     $ccol;
+  };
+  $functions->{cursor_pos} = sub {
+    my $self = shift;
+    my ($row, $col) = map {$self->eval($_)} @_;
+    my @pos;
+    if ((defined($row) && (($row < $global_self->top_row) ||
+        ($row >= $global_self->nrow))) ||
+        (defined($col) && (($col < 0) || ($col >= $self->ncol)))) {
+      $global_self->scr_bell;
+      @pos = ();
+    } else {
+      @pos = $global_self->screen_cur;
+      if (defined($row)) {
+         my $vrow = $global_self->view_start;
+         my $max = $row - 1;
+         my $min = $row - ($global_self->nrow - 1);
+         if ($vrow > $max) {
+           $global_self->view_start($max);
+         } elsif ($vrow < $min) {
+           $global_self->view_start($min);
+         }
+         $global_self->screen_cur($row, $col);
+      }
+    }
+    \@pos;
+  };
+  $functions->{cursor_row} = sub {
+    my $self = shift;
+    my ($crow, $ccol) = $global_self->screen_cur;
+    $crow;
   };
   $functions->{def} = sub {
     my ($self, $name, $args, @body) = @_;
@@ -461,11 +486,11 @@ sub define_functions {
   $functions->{posy} = sub {
     my $self = shift;
     my $row = $self->eval(shift);
-    my $success = ($row);
+    my @success = ($row);
     if (($row < $global_self->top_row) ||
         ($row >= $global_self->nrow)) {
       $global_self->scr_bell;
-      $success = ();
+      @success = ();
     } else {
       my ($crow, $ccol) = $global_self->screen_cur;
       my $vrow = $global_self->view_start;
@@ -477,9 +502,9 @@ sub define_functions {
         $global_self->view_start($min);
       }
       $global_self->screen_cur($row, $ccol);
-      $success = \($row,$ccol);
+      @success = ($row,$ccol);
     }
-    $success;
+    \@success;
   };
   $functions->{progn} = sub {
     my $self = shift;
@@ -626,47 +651,49 @@ sub source {
 }
 
 sub eval {
-  my ($self, $cmd, $file, $line, $stream) = @_;
-  my @tokens = ();
-  $file ||= 'Error';
-  $line ||= '';
-  my $paren = 0;
-  my @curr_token = ();
-  $self->debug_indent;
-  do {
-    $self->debug_out("eval: $cmd\n");
-    while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^\s#()]*)//) {	# consume a token
-      my $token = $1;
-      last if ($token eq '#');			# comment
-      if ($token eq '(') {			# parenthesized expression
-	$paren++;
-      } elsif ($token eq ')') {
-	$paren--;
-      }
-      push @curr_token, $token;
-      if (!$paren) {
-	push @tokens, join(' ', @curr_token);
-	@curr_token = ();
-      }
-    }
-  } while (($paren > 0) && $stream && ($cmd = <$stream>) && (chomp $cmd) && $line++);
-  warn "urxvi: $file:$line Mismatched parentheses" if $paren;
-  my $result;
-  $cmd = shift @tokens;
-  if (defined($cmd)) {
-    if ($cmd =~ /^\((.+)\)$/) {
-      $cmd = $self->eval($1);
-    } 
-    if (my $func = $self->lookup_function($cmd)) {
-      $result = $func->($self, @tokens);
-    } else {
-      $cmd =~ s/^(['"])(.*)\1$/\2/; 		# unquote, if quoted
-      $result = $cmd;		# Not a function, just return the token
-    }
+  my ($self, $icmd, $file, $line, $stream) = @_;
+  if (my $cmd = $icmd) {
+     my @tokens = ();
+     $file ||= 'Error';
+     $line ||= '';
+     my $paren = 0;
+     my @curr_token = ();
+     $self->debug_indent;
+     do {
+       $self->debug_out("eval: $cmd\n");
+       while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^\s#()]*)//) {	# consume a token
+         my $token = $1;
+         last if ($token eq '#');			# comment
+         if ($token eq '(') {			# parenthesized expression
+           $paren++;
+         } elsif ($token eq ')') {
+           $paren--;
+         }
+         push @curr_token, $token;
+         if (!$paren) {
+           push @tokens, join(' ', @curr_token);
+           @curr_token = ();
+         }
+       }
+     } while (($paren > 0) && $stream && ($cmd = <$stream>) && (chomp $cmd) && $line++);
+     warn "urxvi: $file:$line Mismatched parentheses" if $paren;
+     my $result;
+     $cmd = shift @tokens;
+     if (defined($cmd)) {
+       if ($cmd =~ /^\((.+)\)$/) {
+         $cmd = $self->eval($1);
+       } 
+       if (my $func = $self->lookup_function($cmd)) {
+         $result = $func->($self, @tokens);
+       } else {
+         $cmd =~ s/^(['"])(.*)\1$/\2/; 		# unquote, if quoted
+         $result = $cmd;		# Not a function, just return the token
+       }
+     }
+     $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
+     $self->debug_outdent;
+     $result;
   }
-  $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
-  $self->debug_outdent;
-  $result;
 }
 
 sub lookup_function {

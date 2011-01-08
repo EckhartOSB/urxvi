@@ -161,6 +161,15 @@ the move, posx, and posy functions.
 
 -------------------------------------------------------------------------------
 
+cursor_pos - Set/get cursor position
+
+(cursor_pos [row col]) => array
+
+Returns the old position as (row col).  If row and col are specified, moves the
+cursor to that position, if both are valid.  Scrolls row into view if needed.
+
+-------------------------------------------------------------------------------
+
 cursor_row - Cursor row position
 
 (cursor_row) => number
