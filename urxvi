@@ -360,6 +360,12 @@ sub define_functions {
     $self->eval(shift) eq $self->eval(shift);
   };
   $functions->{first_row} = sub { $global_self->top_row; };
+  $functions->{format} = sub {
+    my $self = shift;
+    my $fmt = $self->eval(shift);
+    my @args = map {$self->eval($_)} @_;
+    sprintf($fmt, @args);
+  };
   $functions->{ge} = sub {
     my $self = shift;
     $self->eval(shift) ge $self->eval(shift);

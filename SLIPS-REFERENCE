@@ -214,6 +214,14 @@ be negative if any text has been scrolled out of the window, otherwise 0.
 
 -----------------------------------------------------------------------------
 
+format - Format a string
+
+(format fmt [arg...]) => string
+
+Uses sprintf to format a string, with fmt as the format.
+
+-----------------------------------------------------------------------------
+
 ge - String greater-than-or-equal
 
 (ge op1 op2) => boolean
