@@ -390,6 +390,8 @@ on - Register an event handler
 
 Binds a function to the named event, returning the previously bound
 function, if any.  If no function is passed, then the event is unbound.
+It's a good idea to enclose the name of the event in quotes to avoid
+possibly evaluating another function.
 
 The function can be created with "lambda" or "def".  See the section named
 EVENTS for a list of known events and their arguments.
@@ -612,7 +614,7 @@ are each given with their lambda signature and expected return values.
 
 ------------------------------------------------------------------------------
 
-keypress - Respond to keys pressed by the user
+keypress - User pressed a key
 
 (lambda (key) body) => boolean
 
@@ -625,5 +627,27 @@ action is required.  A false return will treat the keystroke normally.
 
 Note that for most keystrokes, "bind" or "map" will probably do what you want.
 the "keypress" event should be used for key filtering.
+
+------------------------------------------------------------------------------
+
+quit - Exit urxvi mode
+
+(lambda () body) => ignored
+
+This function is triggered whenever the user exits urxvi, whether by repeating
+the "urxvi" user command or by executing the "quit" function.  Note that in the
+"on" function for this event, you must enclose "quit" in quotes to avoid
+evaluating the quit function instead.  For example:
+
+on 'quit' (lambda () ...)
+
+------------------------------------------------------------------------------
+
+start - User entered urxvi mode
+
+(lambda () body) => ignored
+
+This function is triggered whenever urxvi is invoked by the user command
+"urxvi".
 
 ------------------------------------------------------------------------------

@@ -35,6 +35,7 @@ sub on_user_command {
       $urxvi->{status} = $status;
       $urxvi->{select_mode} = '';
       $self->{urxvi} = $urxvi;
+      $self->trigger("start");
       $self->update();
     }
   }
@@ -70,22 +71,16 @@ sub on_key_release {
 
 sub quit {
   my $self = shift;
-  $self->{urxvi} = ();
   $self->view_start($self->{view_start});
   $self->screen_cur(@{ $self->{cursor_pos} });
+  $self->trigger("quit");
+  $self->{urxvi} = ();
 }
 
 sub eval_key {
   my ($self, $keysym) = @_;
   $self->{repeat_touched} = 0;
-  my $keyhandler = $self->{events}->{"keypress"};
-  my $handled = 0;
-  if ($keyhandler) {
-    my ($context, $body) = @$keyhandler;
-    my $func = $context->eval($body);
-    $handled = $context->$func($keysym);
-  }
-  if (!$handled) {
+  if (!$self->trigger("keypress", $keysym)) {
     if (my $keymap = $self->{keymap}->{"$keysym"}) {
       my ($context, $cmd) = @$keymap;
       $context->eval($cmd);
@@ -96,6 +91,17 @@ sub eval_key {
   # if the command didn't set repeat count, clear it.
   $self->{repeat} = 0 if !($self->{repeat_touched});
   $self->update();
+}
+
+sub trigger {
+  my $self = shift;
+  my $event = shift;
+  my @args = @_;
+  if (my $handler = $self->{events}->{"$event"}) {
+    my ($context, $body) = @$handler;
+    my $func = $context->eval($body);
+    $context->$func(@args);
+  }
 }
 
 sub metacode {
@@ -320,7 +326,7 @@ sub define_functions {
     my @pos;
     if ((defined($row) && (($row < $global_self->top_row) ||
         ($row >= $global_self->nrow))) ||
-        (defined($col) && (($col < 0) || ($col >= $self->ncol)))) {
+        (defined($col) && (($col < 0) || ($col >= $global_self->ncol)))) {
       $global_self->scr_bell;
       @pos = ();
     } else {
