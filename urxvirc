@@ -106,9 +106,9 @@ bind y (if select_mode
            (select_mode '')		# in select mode, just turn it off
 	   (progn			# otherwise,
 	     (repeat repeat)		# keep the repeat count for later
-	     (onkeypress		# hook the next key
+	     (on keypress		# hook the next key
 	       (lambda (key)
-		 onkeypress		# unhook subsequent keys
+		 (on keypress)		# unhook subsequent keys
 		 (if (eq key 121)	# y
 		   (select		# select lines
 		     cursor_row		# begin with the current line
