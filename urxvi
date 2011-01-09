@@ -448,7 +448,8 @@ sub define_functions {
       $ccol = $new_col;
     }
     $global_self->screen_cur($crow, $ccol);
-    \($crow, $ccol);
+    my @rslt = ($crow, $ccol);
+    \@rslt;
   };
   $functions->{ne} = sub {
     my $self = shift;
@@ -495,7 +496,8 @@ sub define_functions {
       $global_self->scr_bell;
     }
     $global_self->screen_cur($crow,$ccol);
-    \($crow,$ccol);
+    my @rslt = ($crow,$ccol);
+    \@rslt;
   };
   $functions->{posy} = sub {
     my $self = shift;
