@@ -352,6 +352,7 @@ sub define_functions {
   };
   $functions->{def} = sub {
     my ($self, $name, $args, @body) = @_;
+    $name = $self->eval($name);
     $self->{functions}->{$name} = $self->make_func($args, @body);
   };
   $functions->{eq} = sub {
@@ -660,30 +661,10 @@ sub source {
 sub eval {
   my ($self, $icmd, $file, $line, $stream) = @_;
   if (my $cmd = $icmd) {
-     my @tokens = ();
      $file ||= 'Error';
      $line ||= '';
-     my $paren = 0;
-     my @curr_token = ();
      $self->debug_indent;
-     do {
-       $self->debug_out("eval: $cmd\n");
-       while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^\s#()]*)//) {	# consume a token
-         my $token = $1;
-         last if ($token eq '#');			# comment
-         if ($token eq '(') {			# parenthesized expression
-           $paren++;
-         } elsif ($token eq ')') {
-           $paren--;
-         }
-         push @curr_token, $token;
-         if (!$paren) {
-           push @tokens, join(' ', @curr_token);
-           @curr_token = ();
-         }
-       }
-     } while (($paren > 0) && $stream && ($cmd = <$stream>) && (chomp $cmd) && $line++);
-     warn "urxvi: $file:$line Mismatched parentheses" if $paren;
+     my @tokens = $self->tokenize($cmd, $file, $line, $stream);
      my $result;
      $cmd = shift @tokens;
      if (defined($cmd)) {
@@ -701,6 +682,32 @@ sub eval {
      $self->debug_outdent;
      $result;
   }
+}
+
+sub tokenize {
+   my ($self, $cmd, $file, $line, $stream) = @_;
+   my @tokens = ();
+   my $paren = 0;
+   my @curr_token = ();
+   do {
+     $self->debug_out("parse: $cmd\n");
+     while ($cmd =~ s/^\s*((['"]).*?\2|\(|\)|#|\S[^\s#()]*)//) {	# consume a token
+       my $token = $1;
+       last if ($token eq '#');			# comment
+       if ($token eq '(') {			# parenthesized expression
+         $paren++;
+       } elsif ($token eq ')') {
+         $paren--;
+       }
+       push @curr_token, $token;
+       if (!$paren) {
+         push @tokens, join(' ', @curr_token);
+         @curr_token = ();
+       }
+     }
+   } while (($paren > 0) && $stream && ($cmd = <$stream>) && (chomp $cmd) && $line++);
+   warn "urxvi: $file:$line Mismatched parentheses" if $paren;
+   @tokens;
 }
 
 sub lookup_function {

@@ -16,6 +16,7 @@ flavors include:
 - parentheses may be omitted if not required for grouping
 - end-of-line terminates a statement, if all parentheses are matched
 - strings do not have to be quoted, unless they contain special characters
+  or match function names
 - late binding of arguments is presumed
 
 Thus, for example, the simple command:
@@ -189,8 +190,9 @@ the result of the last cmd.  The def function itself returns a function that
 may be passed to the "call" command, but it's probably more useful to call 
 the function by its name.  For anonymous functions, see "lambda".
 
-If a function alreasdy exists with the specified name, it will be replaced --
-even if it is a built-in function.
+If a function already exists with the specified name, it will be replaced --
+even if it is a built-in function.  Note that in that case you will need to
+enclose name in quotes, to avoid invoking the earlier definition.
 
 -----------------------------------------------------------------------------
 
