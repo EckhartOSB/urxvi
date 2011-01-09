@@ -257,7 +257,7 @@ lambda - Define an anonymous function
 Creates a new unnamed function that takes the specified arguments, evaluates
 each of the cmds and returnsa the result of the last one.  The lambda function
 itself returns the created function, which may be passed to the "call" function,
-or to any event that requires a function.  See "onkeypress".
+or to any event that requires a function.  See "on".
 
 ----------------------------------------------------------------------------
 
@@ -384,17 +384,15 @@ is returned.
 
 -----------------------------------------------------------------------------
 
-onkeypress - Capture subsequent key press events
+on - Register an event handler
 
-(onkeypress [function]) => function
+(on event [function]) => function
 
-Binds a function to the onkeypress event, returning the previously bound
+Binds a function to the named event, returning the previously bound
 function, if any.  If no function is passed, then the event is unbound.
 
-The function can be created with "lambda" or "def".  It must take one
-argument, which is the keysym value of the key pressed.  If this function
-returns a true value, then the key will not be processed further.  Otherwise,
-it will be handled normally.
+The function can be created with "lambda" or "def".  See the section named
+EVENTS for a list of known events and their arguments.
 
 -------------------------------------------------------------------------------
 
@@ -603,3 +601,29 @@ A- = Alt
 
 For example, <A-F1> would be the F1 key while Alt is down.
 <C-S-Enter> would be Ctrl+Shift+Enter.
+
+------------------------------------------------------------------------------
+
+
+EVENTS
+
+The following event names are known by urxvi and triggered automatically.  They
+are each given with their lambda signature and expected return values.
+
+------------------------------------------------------------------------------
+
+keypress - Respond to keys pressed by the user
+
+(lambda (key) body) => boolean
+
+The key passed is a keysym in the lower 16 bits, with the upper sixteen bits
+containing shift bits.  We'll get around to implementing bit-masking functions
+at some point.
+
+Return a true value to indicate that the key has been handled and no further
+action is required.  A false return will treat the keystroke normally.
+
+Note that for most keystrokes, "bind" or "map" will probably do what you want.
+the "keypress" event should be used for key filtering.
+
+------------------------------------------------------------------------------

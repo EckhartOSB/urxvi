@@ -78,7 +78,7 @@ sub quit {
 sub eval_key {
   my ($self, $keysym) = @_;
   $self->{repeat_touched} = 0;
-  my $keyhandler = $self->{onkeypress};
+  my $keyhandler = $self->{events}->{"keypress"};
   my $handled = 0;
   if ($keyhandler) {
     my ($context, $body) = @$keyhandler;
@@ -168,10 +168,10 @@ sub on_start {
   $self->define_keynames();
   $self->{metakeys} = 0;
   $self->{keymap} = {};
+  $self->{events} = {};
   $self->source(dirname(__FILE__) . "/urxvirc");
   $self->source($self->my_resource("rcfile") || "~/.urxvirc");
   $self->{repeat} = 0;		# repeat count for commands
-  $self->{onkeypress} = ();
 }
 
 sub define_keynames {
@@ -450,14 +450,15 @@ sub define_functions {
     my @array = @{$self->eval($list)};
     @array[$self->eval($n)];
   };
-  $functions->{onkeypress} = sub {
-    my ($self, $lambda) = @_;
-    my $prev = $global_self->{onkeypress};
-    if ($lambda) {
-      my @keyhandler = ($self, $lambda);
-      $global_self->{onkeypress} = \@keyhandler;
+  $functions->{on} = sub {
+    my ($self, $event, $lambda) = @_;
+    $event = $self->eval($event);
+    my $prev = $global_self->{events}->{"$event"};
+    if (defined($lambda)) {
+      my @handler = ($self, $lambda);
+      $global_self->{events}->{"$event"} = \@handler;
     } else {
-      $global_self->{onkeypress} = ();
+      $global_self->{events}->{"$event"} = ();
     }
     @$prev[1] if $prev;
   };
