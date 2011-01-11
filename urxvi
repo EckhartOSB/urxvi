@@ -603,8 +603,13 @@ sub define_functions {
 
 sub make_func {
   my ($defining, $args, @body) = @_;
-  $args =~ s/^\((.*)\)$/\1/;   # remove outer parentheses
-  my @params = $defining->tokenize($args);
+  my @params;
+  if ($args =~ s/^\((.*)\)$/\1/) {   # remove outer parentheses
+    @params = $defining->tokenize($args);
+  } else {
+    unshift @body, $args;            # treat as a body statement
+    @params = ();
+  }
   my @param_init = ();
   foreach my $param (@params) {
     my @init;
