@@ -194,6 +194,13 @@ If a function already exists with the specified name, it will be replaced --
 even if it is a built-in function.  Note that in that case you will need to
 enclose name in quotes, to avoid invoking the earlier definition.
 
+If any arg is itself a list, it takes the form:
+
+(name default)
+
+where name is the argument name, and default is a form to evaluate for its
+default value if not passed.
+
 -----------------------------------------------------------------------------
 
 eq - String equality
@@ -269,6 +276,13 @@ each of the cmds and returnsa the result of the last one.  The lambda function
 itself returns the created function, which may be passed to the "call" function,
 or to any event that requires a function.  See "on".
 
+If any arg is itself a list, it takes the form:
+
+(name default)
+
+where name is the argument name, and default is a form to evaluate for its
+default value if not passed.
+
 ----------------------------------------------------------------------------
 
 last_column - The rightmost visible column
@@ -295,6 +309,32 @@ le - String less-than-or-equal
 
 Compares the evaluation of both operands using Perl's le operator, and returns
 the result.
+
+-----------------------------------------------------------------------------
+
+let - Establish scoped assignments
+
+(let ((var value)...) cmd...) => result
+
+For each (var value) pair, evaluates value and assigns it to var for the scope
+of the let statement only.  Each cmd is then evaluated, and the result of the
+last one evaluated is returned.
+
+Note that each value is evaluated in the context of the let in order.  Thus,
+you can use a var within a subsequent value, or even within the var's own value
+if its evaluation is delayed (as in a lambda).
+
+Thus, a good model for hooking events is to save off the old event handler
+to call in a cascaded fashion:
+
+let ((old_handler
+       (on 'eventname' 
+         (lambda ()
+	   (do what i need)
+	   (call old_handler))))))
+
+Or see the default binding of 'y' in urxvirc for an example of restoring
+the old event handler when ours has served its purpose.
 
 -----------------------------------------------------------------------------
 

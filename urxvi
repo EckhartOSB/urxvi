@@ -98,9 +98,7 @@ sub trigger {
   my $event = shift;
   my @args = @_;
   if (my $handler = $self->{events}->{"$event"}) {
-    my ($context, $body) = @$handler;
-    my $func = $context->eval($body);
-    $context->$func(@args);
+    $self->$handler(@args);
   }
 }
 
@@ -312,7 +310,6 @@ sub define_functions {
   $functions->{call} = sub {
     my $self = shift;
     my $func = $self->eval(shift);
-    $global_self->debug_out($func);
     $self->$func(@_);
   };
   $functions->{cursor_column} = sub {
@@ -387,6 +384,11 @@ sub define_functions {
   $functions->{le} = sub {
     my $self = shift;
     $self->eval(shift) le $self->eval(shift);
+  };
+  $functions->{let} = sub {
+    my ($self, $args, @body) = @_;
+    my $scope = $self->make_func($args, @body);
+    $self->$scope();
   };
   $functions->{list} = sub {
     my $self = shift;
@@ -469,12 +471,11 @@ sub define_functions {
     $event = $self->eval($event);
     my $prev = $global_self->{events}->{"$event"};
     if (defined($lambda)) {
-      my @handler = ($self, $lambda);
-      $global_self->{events}->{"$event"} = \@handler;
+      $global_self->{events}->{"$event"} = $self->eval($lambda);
     } else {
       $global_self->{events}->{"$event"} = ();
     }
-    @$prev[1] if $prev;
+    $prev;
   };
   $functions->{or} = sub {
     my $self = shift;
@@ -601,26 +602,43 @@ sub define_functions {
 }
 
 sub make_func {
-  my ($self, $args, @body) = @_;
-  my @params = ();
-  while ($args =~ s/[ (]*(\w+)[ )]*//) {
-    push @params, $1;
+  my ($defining, $args, @body) = @_;
+  $args =~ s/^\((.*)\)$/\1/;   # remove outer parentheses
+  my @params = $defining->tokenize($args);
+  my @param_init = ();
+  foreach my $param (@params) {
+    my @init;
+    if ($param =~ s/^\((.*)\)$/\1/) {
+      @init = $defining->tokenize($param);
+    } else {
+      @init = ($param);
+    }
+    push @param_init, \@init;
   }
   sub {
     my @args = @_;
-    my $self = shift @args;
+    my $calling = shift @args;
     my $context = {};
     bless $context;
     $context->{functions} = {};
-    $context->{prev_context} = $self;
-    if ($self->{debug}) {
-      $context->{debug} = $self->{debug};
-      $context->{debug_indent} = $self->{debug_indent};
+    $context->{prev_context} = $defining;
+    if ($defining->{debug}) {
+      $context->{debug} = $defining->{debug};
+      $context->{debug_indent} = $defining->{debug_indent};
     }
-    for (@params) {
+    foreach my $init (@param_init) {
       my $arg = shift @args;
-      $self->debug_out("$_ => $arg\n");
-      $context->{functions}->{$_} = sub { $self->eval($arg) };
+      if (defined($arg)) {
+        $arg = $calling->eval($arg);    # evaluate argument in the caller's context
+      }
+      my ($name, $default) = @$init;
+      if (defined($default)) {
+        $default = $context->eval($default);
+        # evaluate default in the bound context
+      }
+      $context->{functions}->{$name} = (defined($arg) ?
+        sub { $context->debug_out("arg\n");$arg } :
+        sub { $context->debug_out("default\n");$default });
     }
     my $rval;
     for (@body) {
@@ -667,29 +685,27 @@ sub source {
 }
 
 sub eval {
-  my ($self, $icmd, $file, $line, $stream) = @_;
-  if (my $cmd = $icmd) {
-     $file ||= 'Error';
-     $line ||= '';
-     $self->debug_indent;
-     my @tokens = $self->tokenize($cmd, $file, $line, $stream);
-     my $result;
-     $cmd = shift @tokens;
-     if (defined($cmd)) {
-       if ($cmd =~ /^\((.+)\)$/) {
-         $cmd = $self->eval($1);
-       } 
-       if (my $func = $self->lookup_function($cmd)) {
-         $result = $func->($self, @tokens);
-       } else {
-         $cmd =~ s/^(['"])(.*)\1$/\2/; 		# unquote, if quoted
-         $result = $cmd;		# Not a function, just return the token
-       }
-     }
-     $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
-     $self->debug_outdent;
-     $result;
+  my ($self, $cmd, $file, $line, $stream) = @_;
+  $file ||= 'Error';
+  $line ||= '';
+  $self->debug_indent;
+  my @tokens = $self->tokenize($cmd, $file, $line, $stream);
+  my $result;
+  $cmd = shift @tokens;
+  if (defined($cmd)) {
+    if ($cmd =~ /^\((.+)\)$/) {
+      $cmd = $self->eval($1);
+    } 
+    if (my $func = $self->lookup_function($cmd)) {
+      $result = $func->($self, @tokens);
+    } else {
+      $cmd =~ s/^(['"])(.*)\1$/\2/; 		# unquote, if quoted
+      $result = $cmd;		# Not a function, just return the token
+    }
   }
+  $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
+  $self->debug_outdent;
+  $result;
 }
 
 sub tokenize {
