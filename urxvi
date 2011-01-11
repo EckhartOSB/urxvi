@@ -132,11 +132,11 @@ sub update {
        my ($srow, $scol) = @{ $urxvi->{select_anchor} };
        my ($brow, $bcol, $erow, $ecol) =
           (($srow < $crow) || (($srow == $crow) && ($scol <= $ccol))) ?
-          ($srow, $scol, $crow, $ccol) :
-	  ($crow, $ccol, $srow, $scol);
+          ($srow, $scol, $crow, $ccol+1) :
+	  ($crow, $ccol, $srow, $scol+1);
        if ($urxvi->{select_mode} eq 'line') {
          $bcol = 0;
-	 $ecol = $self->ncol-1;
+	 $ecol = $self->ncol;
        }
        $self->selection_beg($brow, $bcol);
        $self->selection_end($erow, $ecol);

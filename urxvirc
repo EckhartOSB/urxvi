@@ -68,11 +68,11 @@ bind '$' (posx $)
 
 bind '+' (and
 	   (vert 1)
-	     (posx ^))
+	   (posx ^))
 
 bind '-' (and
 	   (vert -1)
-	     (posx ^))
+	   (posx ^))
 
 map <Return> '+'
 
@@ -99,8 +99,12 @@ bind <C-d> (vert
 	       2))
 
 # selection
-bind v (select_mode (if select_mode '' 'char'))	# toggle it
-bind V (select_mode (if select_mode '' 'line'))
+(def toggle_select (mode)
+  (select_mode
+    (if select_mode '' type)))			# toggle the specified mode
+
+bind v (toggle_select 'char')
+bind V (toggle_select 'line')
 
 bind y (if select_mode
            (select_mode '')			# in select mode, just turn it off
