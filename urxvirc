@@ -9,15 +9,7 @@
 bind 0 (or
          (push_repeat 0)
 	 (posx 0))
-bind 1 (push_repeat 1)
-bind 2 (push_repeat 2)
-bind 3 (push_repeat 3)
-bind 4 (push_repeat 4)
-bind 5 (push_repeat 5)
-bind 6 (push_repeat 6)
-bind 7 (push_repeat 7)
-bind 8 (push_repeat 8)
-bind 9 (push_repeat 9)
+each (range 1 9) (lambda (n) (bind n (push_repeat n)))
 
 # cursor movement:
 

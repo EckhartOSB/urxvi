@@ -203,6 +203,15 @@ default value if not passed.
 
 -----------------------------------------------------------------------------
 
+each - Process each element of an array
+
+(each array function) => result
+
+Passes each element of array in turn to function.  See lambda.  Returns the
+result of the last invocation of function.
+
+-----------------------------------------------------------------------------
+
 eq - String equality
 
 (eq op1 op2) => boolean
@@ -529,6 +538,14 @@ quit - Exit urxvi
 (quit) => 1
 
 Returns the terminal window to its normal input state.
+
+------------------------------------------------------------------------------
+
+range - Construct an array from beginning and ending values
+
+(range begin end) => array
+
+Creates an array that contains all elements from begin through end, inclusive.
 
 ------------------------------------------------------------------------------
 

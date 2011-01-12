@@ -352,6 +352,13 @@ sub define_functions {
     $name = $self->eval($name);
     $self->{functions}->{$name} = $self->make_func($args, @body);
   };
+  $functions->{each} = sub {
+    my $self = shift;
+    my ($ary, $lambda) = map {$self->eval($_)} @_;
+    for (@$ary) {
+      $self->$lambda($_);
+    }
+  };
   $functions->{eq} = sub {
     my $self = shift;
     $self->eval(shift) eq $self->eval(shift);
@@ -557,6 +564,12 @@ sub define_functions {
     $global_self->{repeat};
   };
   $functions->{quit} = sub { my $self = shift; $self->quit; };
+  $functions->{range} = sub {
+    my $self = shift;
+    my ($beg,$end) = map {$self->eval($_)} @_;
+    my @rng = ($beg..$end);
+    \@rng;
+  };
   $functions->{repeat} = sub {
     my ($self, $new) = @_;
     my $old = $global_self->{repeat};
