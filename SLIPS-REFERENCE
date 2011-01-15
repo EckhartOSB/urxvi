@@ -425,6 +425,15 @@ the result.
 
 ------------------------------------------------------------------------------
 
+nil - Nil value
+
+(nil) => nil
+
+Yields a nil value, which is also logically false.  This value can be used in
+place of an argument that isn't passed, if needed as a placeholder.
+
+------------------------------------------------------------------------------
+
 not - Invert a boolean result
 
 (not operand) => boolean

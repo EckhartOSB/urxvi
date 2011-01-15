@@ -464,6 +464,7 @@ sub define_functions {
     my $self = shift;
     $self->eval(shift) ne $self->eval(shift);
   };
+  $functions->{nil} = sub {};
   $functions->{not} = sub {
     my $self = shift;
     !($self->eval(shift));
