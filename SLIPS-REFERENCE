@@ -222,12 +222,30 @@ the result.
 
 ----------------------------------------------------------------------------
 
+find_backward - Find the previous occurence of a pattern
+
+(find_backward patterm [begpos]) => array
+
+If begpos is passed, it must be an array of (row col) for the first position
+(backward) to consider in the search (i.e., the greatest row, col coordinates
+at which a match can be found).  If not passed, it defaults to the previous
+column before (cursor_pos).
+
+The pattern is a Perl regular expression (without delimiters) for which to
+search.
+
+Returns an array specifying the position of the found string as (row col) if
+found, otherwise nil.
+
+----------------------------------------------------------------------------
+
 find_forward - Find the next occurence of a pattern
 
 (find_forward pattern [begpos]) => array
 
 If begpos is passed, it must be an array of (row col) for the first position
-to consider in the search.  If not passed, it defaults to (cursor_pos).
+to consider in the search.  If not passed, it defaults to the next column
+following (cursor_pos).
 
 The pattern is a Perl regular expression (without delimiters) for which to
 search.

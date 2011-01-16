@@ -368,6 +368,40 @@ sub define_functions {
     my $self = shift;
     $self->eval(shift) eq $self->eval(shift);
   };
+  $functions->{find_backward} = sub {
+    my $self = shift;
+    my ($pattern, $start) = map {$self->eval($_)} @_;
+    my ($row, $col);
+    my $maxcol = $global_self->ncol-1;
+    if ($start) {
+      ($row, $col) = $start;
+    } else {
+      ($row, $col) = $global_self->screen_cur;
+      if ($col > 0) {
+        $col--;
+      } else {
+        $row--;
+        $col = $maxcol;
+      }
+    }
+    my $min = $global_self->top_row;
+    my $rslt;
+    do {
+      my $text = $global_self->ROW_t($row);
+      $col = length $global_self->special_decode(substr($text, 0, $col));
+      $text = $global_self->special_decode($text);
+      if ($text =~ /\A.{0,$col}($pattern)/) {
+        my $pos = $-[1];
+        $col = length(expand(substr($text,0,$pos)));
+        my @r = ($row, $col);
+        $rslt = \@r;
+      } else {
+        $row--;
+        $col = $maxcol;
+      }
+    } until ($rslt || ($row < $min));
+    $rslt;
+  };
   $functions->{find_forward} = sub {
     my $self = shift;
     my ($pattern, $start) = map {$self->eval($_)} @_;
@@ -390,12 +424,10 @@ sub define_functions {
         $ptn = $pattern;
       }
       $text = $global_self->special_decode($text);
-      $self->debug_out("searching $text\n");
       if ($text =~ /$ptn/) {
         my $pos = $-[0] + $col;
         $col = length(expand(substr($text,0,$pos)));
         my @r = ($row, $col);
-        $self->debug_out("$row, $col\n");
         $rslt = \@r;
       } else {
         $row++;

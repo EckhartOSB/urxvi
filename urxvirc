@@ -91,7 +91,9 @@ bind <C-d> (vert
 	       2))
 
 bind w (cursor_pos (find_forward '(?<!\w)\w'))	# Word character, not preceded by word character
+bind b (cursor_pos (find_backward '(?<!\w)\w'))
 bind W (cursor_pos (find_forward '(?<!\S)\S'))	# Non-space, not preceded by non-space
+bind B (cursor_pos (find_backward '(?<!\S)\S'))	# Non-space, not preceded by non-space
 bind e (cursor_pos (find_forward '\w(?!\w)'))	# Word character, not followed by word character
 bind E (cursor_pos (find_forward '\S(?!\S)'))	# Non-space, not followed by a non-space
 
