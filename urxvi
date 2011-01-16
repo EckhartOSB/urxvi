@@ -2,8 +2,9 @@
 
 # Author: Chip Camden <sterling@camdensoftware.com>
 
-
+use IO::Handle;
 use File::Basename;
+use Text::Tabs;
 require Term::Cap;
 
 use constant {
@@ -167,6 +168,9 @@ sub on_start {
   $self->{name} =~ tr/_/-/;
   $self->{urxvi} = ();
   $self->{debug} = ($self->my_resource("debug") eq "on");
+  if ($self->{debug}) {
+    STDOUT->autoflush(1);    # disable buffering
+  }
   $self->{debug_indent} = '';
   $self->define_functions();
   $self->define_keynames();
@@ -319,7 +323,8 @@ sub define_functions {
   };
   $functions->{cursor_pos} = sub {
     my $self = shift;
-    my ($row, $col) = map {$self->eval($_)} @_;
+    my $coord = $self->eval(shift);
+    my ($row, $col) = $coord ? @$coord : ();
     my @pos;
     if ((defined($row) && (($row < $global_self->top_row) ||
         ($row >= $global_self->nrow))) ||
@@ -362,6 +367,42 @@ sub define_functions {
   $functions->{eq} = sub {
     my $self = shift;
     $self->eval(shift) eq $self->eval(shift);
+  };
+  $functions->{find_forward} = sub {
+    my $self = shift;
+    my ($pattern, $start) = map {$self->eval($_)} @_;
+    my ($row, $col);
+    if ($start) {
+      ($row, $col) = $start;
+    } else {
+      ($row, $col) = $global_self->screen_cur;
+      $col++;
+    }
+    my $max = $global_self->nrow-1;
+    my $rslt;
+    do {
+      my $text = $global_self->ROW_t($row);
+      my $ptn;
+      if ($col) {
+        $col = length $global_self->special_decode(substr($text, 0, $col));
+        $ptn = "(?:.{$col})$pattern";
+      } else {
+        $ptn = $pattern;
+      }
+      $text = $global_self->special_decode($text);
+      $self->debug_out("searching $text\n");
+      if ($text =~ /$ptn/) {
+        my $pos = $-[0] + $col;
+        $col = length(expand(substr($text,0,$pos)));
+        my @r = ($row, $col);
+        $self->debug_out("$row, $col\n");
+        $rslt = \@r;
+      } else {
+        $row++;
+        $col = 0;
+      }
+    } until ($rslt || ($row > $max));
+    $rslt;
   };
   $functions->{first_row} = sub { $global_self->top_row; };
   $functions->{format} = sub {

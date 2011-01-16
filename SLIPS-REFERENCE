@@ -164,10 +164,11 @@ the move, posx, and posy functions.
 
 cursor_pos - Set/get cursor position
 
-(cursor_pos [row col]) => array
+(cursor_pos array) => array
 
-Returns the old position as (row col).  If row and col are specified, moves the
-cursor to that position, if both are valid.  Scrolls row into view if needed.
+Returns the old position as (row col).  If array is specified, moves the
+cursor to that position, if the first two elements specify a valid row and
+column, respectively.  Scrolls row into view if needed.
 
 -------------------------------------------------------------------------------
 
@@ -218,6 +219,21 @@ eq - String equality
 
 Compares the evaluation of both operands using Perl's eq operator, and returns
 the result.
+
+----------------------------------------------------------------------------
+
+find_forward - Find the next occurence of a pattern
+
+(find_forward pattern [begpos]) => array
+
+If begpos is passed, it must be an array of (row col) for the first position
+to consider in the search.  If not passed, it defaults to (cursor_pos).
+
+The pattern is a Perl regular expression (without delimiters) for which to
+search.
+
+Returns an array specifying the position of the found string as (row col) if
+found, otherwise nil.
 
 ----------------------------------------------------------------------------
 
