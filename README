@@ -40,36 +40,42 @@ command is executed or the 'urxvi' user command is repeated.
 
 The supplied version of urxvirc provides the following key bindings:
 
-0		move to beginning of line, unless a repeat-count has been started
-		(in which case it adds the 0 to the repeat-count).
-1-9		add the digit to the repeat-count.
-h, <Left>	move (repeat-count or 1) columns left.
-j, <Down>	move (repeat-count or 1) rows down.
-k, <Up>		move (repeat-count or 1) rows up.
-l, <Right>	move (repeat-count or 1) columns right.
-G		move to the beginning of the (repeat-count or last) absolute row.
-		(For most commands, rows start at 0 for the final screen-full as
-		in urxvt's API, with negative numbers for scrollback rows.  In this
-		command, however, they begin at 1 for the first known row.)
-H		move to the beginning of the first visible row.
-L		move to the beginning of the last visible row.
 ^		move to the first non-space character on the current row.
 $		move to the last non-space character on the current row.
 +, <Return>	move to the beginning of the (current + (repeat-count or 1)) row.
 -		move to the beginning of the (current - (repeat-count or 1)) row.
-<Home>		move to the first row.
-<End>		move to the last row.
-<C-b>, <PageUp> move (repeat-count or 1) pages up.
-<C-f>, <PageDown> move (repeat-count or 1) pages down.
-<C-u>		move (repeat-count or 1) half pages up.
-<C-d>		move (repeat-count or 1) half pages down.
+0		move to beginning of line, unless a repeat-count has been started
+		(in which case it adds the 0 to the repeat-count).
+1-9		add the digit to the repeat-count.
+b		move backward to the beginning of a word (delimited by non-word chaarcters).
+B		move backward to the beginning of a WORD (delimited by spaces).
+e		move forward to the end of a word.
+E		move forward to the end of a WORD.
+G		move to the beginning of the (repeat-count or last) absolute row.
+		(For most commands, rows start at 0 for the final screen-full as
+		in urxvt's API, with negative numbers for scrollback rows.  In this
+		command, however, they begin at 1 for the first known row.)
+h, <Left>	move (repeat-count or 1) columns left.
+H		move to the beginning of the first visible row.
+j, <Down>	move (repeat-count or 1) rows down.
+k, <Up>		move (repeat-count or 1) rows up.
+l, <Right>	move (repeat-count or 1) columns right.
+L		move to the beginning of the last visible row.
+q		quit urxvi
 v		toggle character-wise selection mode.
 V		toggle line-wise selection mode.
+w		move forward to the beginning of a word.
+W		move forward to the beginning of a WORD.
 y		if in selection mode, exit selection mode (leaving text selected)
 		otherwise, wait for the next key.  If another y, select (repeat-count or 1)
 		lines, starting with the current line.  For any other character, execute
 		that movement in select mode, then turn off select mode.
-q		quit urxvi
+<Home>		move to the first row.
+<End>		move to the last row.
+<C-b>, <PageUp> move (repeat-count or 1) pages up.
+<C-d>		move (repeat-count or 1) half pages down.
+<C-f>, <PageDown> move (repeat-count or 1) pages down.
+<C-u>		move (repeat-count or 1) half pages up.
 <Esc>		if in selection mode, exit selection mode (leaving text selected)
 		otherwise, if any text is selected, clear the selection
 		otherwise, quit urxvi.
