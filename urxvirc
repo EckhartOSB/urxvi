@@ -90,12 +90,22 @@ bind <C-d> (vert
 	       (- page_size 2)
 	       2))
 
-bind w (cursor_pos (find_forward '(?<!\w)\w'))	# Word character, not preceded by word character
-bind b (cursor_pos (find_backward '(?<!\w)\w'))
-bind W (cursor_pos (find_forward '(?<!\S)\S'))	# Non-space, not preceded by non-space
-bind B (cursor_pos (find_backward '(?<!\S)\S'))	# Non-space, not preceded by non-space
-bind e (cursor_pos (find_forward '\w(?!\w)'))	# Word character, not followed by word character
-bind E (cursor_pos (find_forward '\S(?!\S)'))	# Non-space, not followed by a non-space
+# find with repeat count
+(def fwr (find pattern)
+  (cursor_pos
+    (let ((times (or repeat 1))
+          (loop (lambda (n)
+	    (if (ne n 0)
+	      (apply find pattern
+	        (call loop (- n 1)))))))
+	 (call loop times))))
+
+bind w (fwr 'find_forward' '(?<!\w)\w')	# Word character, not preceded by word character
+bind b (fwr 'find_backward' '(?<!\w)\w')
+bind W (fwr 'find_forward' '(?<!\S)\S')	# Non-space, not preceded by non-space
+bind B (fwr 'find_backward' '(?<!\S)\S')
+bind e (fwr 'find_forward' '\w(?!\w)')	# Word character, not followed by word character
+bind E (fwr 'find_forward' '\S(?!\S)')	# Non-space, not followed by a non-space
 
 # selection
 (def toggle_select (mode)

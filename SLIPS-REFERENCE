@@ -125,6 +125,20 @@ If none of the operands yield false, returns the last operand.
 
 -------------------------------------------------------------------------------
 
+apply - Call a function by name
+
+(apply name [arg...]) => result
+
+Calls the function whose name is name (string), passing the arguments and
+returning the result.  The following three statements are functionally
+equivalent:
+
+(apply 'myfunc' arg)
+(call (getdef 'myfunc') arg)
+(myfunc arg)
+
+-------------------------------------------------------------------------------
+
 append - Append arrays
 
 (append array...) => array
@@ -226,10 +240,8 @@ find_backward - Find the previous occurence of a pattern
 
 (find_backward patterm [begpos]) => array
 
-If begpos is passed, it must be an array of (row col) for the first position
-(backward) to consider in the search (i.e., the greatest row, col coordinates
-at which a match can be found).  If not passed, it defaults to the previous
-column before (cursor_pos).
+If begpos is passed, it must be an array of (row col) for the position before
+which the match must occur.  If not passed, it defaults to (cursor_pos).
 
 The pattern is a Perl regular expression (without delimiters) for which to
 search.
@@ -243,9 +255,8 @@ find_forward - Find the next occurence of a pattern
 
 (find_forward pattern [begpos]) => array
 
-If begpos is passed, it must be an array of (row col) for the first position
-to consider in the search.  If not passed, it defaults to the next column
-following (cursor_pos).
+If begpos is passed, it must be an array of (row col) for the position after
+which the match must occur.  If not passed, it defaults to (cursor_pos).
 
 The pattern is a Perl regular expression (without delimiters) for which to
 search.
@@ -278,6 +289,16 @@ ge - String greater-than-or-equal
 
 Compares the evaluation of both operands using Perl's ge operator, and returns
 the result.
+
+-----------------------------------------------------------------------------
+
+getdef - Get a lambda for a define function
+
+(getdef name) => function
+
+This function returns the function associated with name (string), which may
+then be passed to call or any other function that requires a function
+argument.
 
 -----------------------------------------------------------------------------
 

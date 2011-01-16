@@ -299,6 +299,14 @@ sub define_functions {
     }
     $rval;
   };
+  $functions->{apply} = sub {
+    my $self = shift;
+    my $name = $self->eval(shift);
+    my @args = @_;
+    if (my $func = $self->lookup_function($name)) {
+      $self->$func(@args);
+    }
+  };
   $functions->{append} = sub {
     my $self = shift;
     my @rslt = ();
@@ -373,16 +381,12 @@ sub define_functions {
     my ($pattern, $start) = map {$self->eval($_)} @_;
     my ($row, $col);
     my $maxcol = $global_self->ncol-1;
-    if ($start) {
-      ($row, $col) = $start;
+    ($row, $col) = $start ? @$start : $global_self->screen_cur;
+    if ($col > 0) {
+      $col--;
     } else {
-      ($row, $col) = $global_self->screen_cur;
-      if ($col > 0) {
-        $col--;
-      } else {
-        $row--;
-        $col = $maxcol;
-      }
+      $row--;
+      $col = $maxcol;
     }
     my $min = $global_self->top_row;
     my $rslt;
@@ -406,12 +410,8 @@ sub define_functions {
     my $self = shift;
     my ($pattern, $start) = map {$self->eval($_)} @_;
     my ($row, $col);
-    if ($start) {
-      ($row, $col) = $start;
-    } else {
-      ($row, $col) = $global_self->screen_cur;
-      $col++;
-    }
+    ($row, $col) = $start ? @$start : $global_self->screen_cur;
+    $col++;
     my $max = $global_self->nrow-1;
     my $rslt;
     do {
@@ -446,6 +446,11 @@ sub define_functions {
   $functions->{ge} = sub {
     my $self = shift;
     $self->eval(shift) ge $self->eval(shift);
+  };
+  $functions->{getdef} = sub {
+    my $self = shift;
+    my $name = $self->eval(shift);
+    $self->lookup_function($name);
   };
   $functions->{gt} = sub {
     my $self = shift;
