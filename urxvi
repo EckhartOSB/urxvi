@@ -358,6 +358,7 @@ sub define_functions {
     my $func = $self->eval(shift);
     $self->$func(@_) if $func;
   };
+  $functions->{context} = sub { shift; };
   $functions->{cursor_column} = sub {
     my $self = shift;
     my ($crow, $ccol) = $global_self->screen_cur;
@@ -486,6 +487,7 @@ sub define_functions {
     my $name = $self->eval(shift);
     $self->lookup_function($name);
   };
+  $functions->{global_context} = sub { $global_self; };
   $functions->{gt} = sub {
     my $self = shift;
     $self->eval(shift) gt $self->eval(shift);
@@ -493,6 +495,15 @@ sub define_functions {
   $functions->{if} = sub {
     my ($self, $cond, $iftrue, $iffalse) = @_;
     ($self->eval($cond)) ? ($self->eval($iftrue)) : ($self->eval($iffalse))
+  };
+  $functions->{in} = sub {
+    my $self = shift;
+    my $context = $self->eval(shift);
+    my $rslt;
+    for (@_) {
+      $rslt = $context->eval($_);
+    }
+    $rslt;
   };
   $functions->{lambda} = sub {
     my ($self, $args, @body) = @_;
@@ -642,6 +653,11 @@ sub define_functions {
       @success = ($row,$ccol);
     }
     \@success;
+  };
+  $functions->{prev_context} = sub {
+    my $self = shift;
+    my $context = $self->eval(shift);
+    $context ? $context->{prev_context} : $self->{prev_context};
   };
   $functions->{progn} = sub {
     my $self = shift;

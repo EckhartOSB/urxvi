@@ -213,6 +213,28 @@ arg parameters, and returning its result.
 
 -------------------------------------------------------------------------------
 
+context - Get the current execution context
+
+(context) => context
+
+Returns the current calling context.  This is only useful if you're saving it
+to pass to "in" within a different context.  For example:
+
+(let ((outer context))
+     (let ()
+	  (def 'xyz' 123)
+	  (in outer (def 'xyz' 456))
+          # (xyz) => 123 here
+	  )  # end of let
+     # (xyz) => 456 here
+     )
+# (xyz) => 'xyz' here
+
+See global_context for retrieving the outermost context, or prev_context for
+retrieving the previous context.
+
+-------------------------------------------------------------------------------
+
 cursor_column - Cursor column position
 
 (cursor_column) => number
@@ -251,15 +273,24 @@ the result of the last cmd.  The def function itself returns a function that
 may be passed to the "call" command, but it's probably more useful to call 
 the function by its name.  For anonymous functions, see "lambda".
 
-If a function already exists with the specified name, it will be replaced --
+The name argument is a string, not a token.  Thus, you can use other functions
+to generate the name.  Conversely, you can use the apply function to call a
+function whose name is generated in the same way.
+
+If a function already exists with the specified name, it will be superceded --
 even if it is a built-in function.  Note that in that case you will need to
 enclose name in quotes, to avoid invoking the earlier definition.
 
+The function will be defined within the current scope.  That is, if the def
+invocation occurs within a let or a lambda, its scope will be limited to that
+statement.  defs occurring outside all such statements have a global scope.
+See the "in" function for explicitly establishing scope.
+
 If any arg is itself a list, it takes the form:
 
-(name default)
+(argname default)
 
-where name is the argument name, and default is a form to evaluate for its
+where argname is the argument name, and default is a form to evaluate for its
 default value if not passed.
 
 -----------------------------------------------------------------------------
@@ -348,6 +379,25 @@ argument.
 
 -----------------------------------------------------------------------------
 
+global_context - Get the global execution context
+
+(global_context) => context
+
+Returns the outermost (global) execution context.  This is only useful when
+passed to the "in" function to override the context of definitions.  For example:
+
+(let ()
+     (def 'xyz' 123)
+     (in global_context (def 'xyz' 456))
+     xyz	# => 123
+     )
+xyz		# => 456
+
+See the "context" function for retrieving the current context.  For many
+applications, "prev_context" might be a better option than using "global_context".
+
+-----------------------------------------------------------------------------
+
 gt - String greater-than
 
 (gt op1 op2) => boolean
@@ -374,6 +424,30 @@ if - Conditional branch
 
 Evaluates cond for truth.  If true, evaluates and returns iftrue.  Otherwise,
 evaluates and returns iffalse.
+
+-----------------------------------------------------------------------------
+
+in - Evaluate functions in a specific context
+
+(in context cmd...)
+
+Evaluates each cmd within the specified execution context.  See "context",
+"global_context", and "prev_context".
+
+Example:
+
+def 'xyz' 123
+(lambda () 
+  (let ((outer prev_context))
+       (def 'xyz' 456)
+       (in outer (def 'xyz' 789))
+       # xyz => 456
+       # (in prev_context xyz) => 789
+       # (in global_context xyz) => 123
+       )
+  # xyz => 789 here
+  )
+# xyz => 123 here
 
 -----------------------------------------------------------------------------
 
@@ -603,6 +677,26 @@ posy - Position the cursor to an absolute row
 Attempts to place the cursor at the specified row.  If the row number is invalid
 (less than first_row or greater than last_row), returns false without moving the
 cursor.  Otherwise, returns the new position as an array (row col).
+
+-----------------------------------------------------------------------------
+
+prev_context - Get the previous execution context
+
+(prev_context [context]) => context
+
+Returns the execution context immediately outside the specified context, or the
+current context if none is specified.  This is only useful when passed to the
+"in" function to override the context of definitions.  For example:
+
+(let ()
+     (def 'xyz' 123)
+     (in prev_context (def 'xyz' 456))
+     xyz	# => 123
+     )
+xyz		# => 456
+
+See the "context" function for retrieving the current context, and the
+"global_context" function for retrieving the global context.
 
 -----------------------------------------------------------------------------
 
