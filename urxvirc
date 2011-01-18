@@ -121,7 +121,7 @@ bind y (if select_mode
 	       (on keypress			# hook the next key
 	         (lambda (key)
 		   (on keypress old_keypress)	# restore previous event handler
-		   (if (eq key 121)		# y
+		   (if (eq key 0x79)		# y
 		     (select			# select lines
 		       cursor_row		# begin with the current line
 		       0			# leftmost column

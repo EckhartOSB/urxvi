@@ -17,6 +17,9 @@ flavors include:
 - end-of-line terminates a statement, if all parentheses are matched
 - strings do not have to be quoted, unless they contain special characters
   or match function names
+- if a token is all digits, it will be treated as a number
+- if a token is '0x' followed by hexadecimal digits (upper or lower case),
+  it will be treated as a hexadecimal number
 - late binding of arguments is presumed
 
 Thus, for example, the simple command:
@@ -38,8 +41,8 @@ to give it the self-referential name "Slips", for "Sloppy Lisp".
 Because Slips is written in Perl (following the true pattern of the universe
 http://xkcd.com/224/), its understanding of types conforms to Perl's --
 except that the penchant to treat everything as a string is perhaps even
-more pronounced.  All arguments begin life as strings in Slips, and only
-become numbers (or other things) as they are coerced by the operations
+more pronounced.  All arguments begin life as strings or numbers in Slips,
+and only become other things as they are coerced by the operations
 performed on them.
 
 
@@ -155,6 +158,49 @@ bind - Bind a key to a Slips command
 Binds the key specified in the key argument to the Slips command specified by
 cmd.  Possible values for the key specification can be found in the section
 entitled KEY NAMES below.
+
+-------------------------------------------------------------------------------
+
+bit_and - Bitwise AND
+
+(bit_and value...) => number
+
+Interprets each argument as a number and performs a bitwise AND operation on
+them.
+
+-------------------------------------------------------------------------------
+
+bit_not - Bitwise NOT
+
+(bit_not value) => number
+
+Interprets the first argument as a number and then flips all its bits.
+
+-------------------------------------------------------------------------------
+
+bit_or - Bitwise OR
+
+(bit_or value...) => number
+
+Interprets each argument as a number and performs a bitwise OR operation on
+them.
+
+-------------------------------------------------------------------------------
+
+bit_xor - Bitwise XOR
+
+(bit_xor value...) => number
+
+Interprets each argument as a number and performs a bitwise XOR operation on
+them.  The result of XORing the first pair is XORed against the third argument
+(if present), and the result of that is XORed against the fourth, etc.  That's
+an important distinction from the alternative of taking them all together.
+
+For example:
+
+(bit_xor 0x10 0x10 0x10)
+
+yields 0x10, because XORing the first two values produced 0x00.
 
 -------------------------------------------------------------------------------
 
@@ -693,7 +739,7 @@ KEY NAMES
 The names of keys specified in the "bind", "push_input", and "map" commands
 generally agree with key specifications in vi's "map" command.  A single
 character corresponds to the key used to create it, like "A" or "z".  Special
-tokens enclosed in <> have the following meanings:
+tokens enclosed in <> have the following meanings (keysym value in parentheses):
 
 <BS> = backspace (0xff08)
 <Tab> = tab (0xff09)
@@ -750,14 +796,26 @@ keypress - User pressed a key
 (lambda (key) body) => boolean
 
 The key passed is a keysym in the lower 16 bits, with the upper sixteen bits
-containing shift bits.  We'll get around to implementing bit-masking functions
-at some point.
+containing shift bits.  Use bit_and top mask for the following "constants":
+
+MK_SHIFT	Shift key was down (except for letters)
+MK_CONTROL	Control key was down
+MK_MOD4		Mod4 key was down (usually the Windows key)
+MK_ALT		Alt key was down
+
+For instance,
+
+(if (bit_and key MK_CONTROL)
+    (message "control key"))
+
+To obtain only the character portion of the key, mask off the upper bits (e.g.,
+(bit_and key 0xffff)).
 
 Return a true value to indicate that the key has been handled and no further
 action is required.  A false return will treat the keystroke normally.
 
 Note that for most keystrokes, "bind" or "map" will probably do what you want.
-the "keypress" event should be used for key filtering.
+the "keypress" event should be used primarily for key filtering.
 
 ------------------------------------------------------------------------------
 
