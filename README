@@ -91,6 +91,8 @@ When in command mode, the following default key bindings are provided by urxvirc
 <Left>		Move command cursor one character left
 <Right>		Move command cursor one character right
 <Enter>		Apply the command
+<BS>		Erase character to the left of the command cursor.
+		If no characters in cmd_text, exit command mode.
 
 
 SYNTAX

@@ -608,6 +608,13 @@ sub define_functions {
     my $self = shift;
     $self->eval(shift) le $self->eval(shift);
   };
+  $functions->{length} = sub {
+    my $self = shift;
+    my $what = $self->eval(shift);
+    (ref($what) eq "ARRAY") ?
+      length @$what :
+      length $what;
+  };
   $functions->{let} = sub {
     my ($self, $args, @body) = @_;
     my $scope = $self->make_func($args, @body);
@@ -832,6 +839,11 @@ sub define_functions {
   };
   $functions->{selection} = sub { $global_self->selection };
   $functions->{source} = sub { my $self = shift; $global_self->source(map {$self->eval($_)} @_) };
+  $functions->{substr} = sub {
+    my $self = shift;
+    my ($text, $start, $len) = map { $self->eval($_) } @_;
+    defined($len) ? substr($text, $start, $len) : substr($text, $start);
+  };
   $functions->{view_start} = sub { $global_self->view_start; };
   $global_self->{functions} = $functions;
 }

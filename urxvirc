@@ -163,3 +163,14 @@ cmd_bind <Enter> (progn (call cmd_action cmd_text)
 		        (cmd_mode 0))
 cmd_bind <Left> (cmd_pos (- cmd_pos 1))
 cmd_bind <Right> (cmd_pos (+ cmd_pos 1))
+cmd_bind <BS> (if (eq cmd_pos 0)
+		  (if (eq (length cmd_text) 0)
+		      (cmd_mode 0))		# BS out of command mode
+		  (let ((old_pos cmd_pos))
+		    (cmd_pos (- cmd_pos 1))
+		    (cmd_text
+		      (if (gt cmd_pos 0)
+		        (format "%s%s"
+			  (substr cmd_text 0 cmd_pos)
+			  (substr cmd_text old_pos))
+			(substr cmd_text old_pos)))))

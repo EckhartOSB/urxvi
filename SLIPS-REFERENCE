@@ -598,6 +598,15 @@ the result.
 
 -----------------------------------------------------------------------------
 
+length - Get length of a string or array
+
+(length str_or_array) => number
+
+Returns the length of str_or_array.  If not an array, str_or_array is treated
+as a string.
+
+-----------------------------------------------------------------------------
+
 let - Establish scoped assignments
 
 (let ((var value)...) cmd...) => result
@@ -906,6 +915,16 @@ turn, returning a true value if the last one could be read, otherwise a
 false value.
 
 Each file name will be globbed.
+
+------------------------------------------------------------------------------
+
+substr - Extract a substring
+
+(substr string begin [length]) => string
+
+Extracts the portion of string beginning at begin (0-based) for a length of
+length (if passed).  The length defaults to the remainder of the string, and
+is also limited to that.
 
 ------------------------------------------------------------------------------
 
