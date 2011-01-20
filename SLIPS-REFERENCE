@@ -151,13 +151,32 @@ an argument is not an array, an error occurs.
 
 -------------------------------------------------------------------------------
 
+ask - Prompt the user for a response
+
+(ask prompt function [default]) => boolean
+
+Enters command mode after setting the (cmd_prompt) to prompt,
+(cmd_action) to function, and (cmd_text) to default (if passed).
+It also turns on (cmd_insert_mode) and sets (cmd_pos) to the end
+of the default text.
+
+The key bindings provided in urxvirc bind <Enter> to execute the
+function.
+
+This function is defined in urxvirc.
+
+-------------------------------------------------------------------------------
+
 bind - Bind a key to a Slips command
 
 (bind key cmd) => mapping
 
 Binds the key specified in the key argument to the Slips command specified by
-cmd.  Possible values for the key specification can be found in the section
-entitled KEY NAMES below.
+cmd.  This binding only takes effect when (cmd_mode) is false.  Possible values
+for the key specification can be found in the section entitled KEY NAMES below.
+
+The cmd has an implied (lambda () ) around it.  Do not specify one, or your key
+will only return the lambda.
 
 -------------------------------------------------------------------------------
 
@@ -210,6 +229,89 @@ call - Call a function anonymously
 
 Calls a function (constructed by the "lambda" or "def" command), passing it the
 arg parameters, and returning its result.
+
+-------------------------------------------------------------------------------
+
+cmd_action - Function to execute for command mode
+
+(cmd_action [function]) => function
+
+If function is passed, it should be a lambda that takes one argument, which
+will be passed as the text of the command buffer.
+
+Returns the previous setting, which may be nil.
+
+-------------------------------------------------------------------------------
+
+cmd_bind - Bind a key in command mode
+
+(cmd_bind key cmd) => mapping
+
+Binds the key specified in the key argument to the Slips command specified by
+cmd.  This binding only takes effect while (cmd_mode) is true.  Possible values
+for the key specification can be found in the section entitled KEY NAMES below.
+
+The cmd has an implied (lambda () ) around it.  Do not specify one, or your key
+will only return the lambda.
+
+-------------------------------------------------------------------------------
+
+cmd_insert_mode - Insert/overstrike in command mode
+
+(cmd_insert_mode [boolean]) => boolean
+
+Sets and/or gets the insert mode for command mode.  If passed, a true value
+causes subsequent unbound keystrokes in command mode to insert their character
+representations at the location of the command cursor, while a false value
+replaces the character at the command cursor location.
+
+Returns the previous value.
+
+-------------------------------------------------------------------------------
+
+cmd_mode - Sets/gets command mode
+
+(cmd_mode [boolean]) => boolean
+
+Sets and/or gets the command mode.  If passed, a true value causes a command
+line to be displayed on the bottom row of the terminal window, and future
+keystrokes will be bound according to previous (cmd_bind) invocations instead
+of (bind).  Unbound keys will be added to the command line at the location
+of the command cursor (see cmd_pos) in insert or overstrike mode, depending on
+(cmd_insert_mode).  See (ask).
+
+Returns the previous setting.
+
+-------------------------------------------------------------------------------
+
+cmd_pos - Sets/gets the command cursor position
+
+(cmd_pos [number]) => number
+
+Sets and/or gets the column position of the command cursor within the command
+line (which is only visible if cmd_mode is true, but can be accessed at other
+times as well).  The value will be automatically limited to no less than 0 and
+no greater than the length of (cmd_text) on the next screen update in command
+mode.
+
+Returns the previous value.
+
+-------------------------------------------------------------------------------
+
+cmd_prompt - Sets/gets the command line prompt
+
+(cmd_prompt [string]) => string
+
+Sets and/or gets the prompt displayed to the left of the command line when
+(cmd_mode) is true.  Returns the previous value.
+
+-------------------------------------------------------------------------------
+
+cmd_text - Sets/gets the command line buffer
+
+(cmd_text [string]) => string
+
+Sets and/or gets the text of the command buffer.  Returns the previous value.
 
 -------------------------------------------------------------------------------
 

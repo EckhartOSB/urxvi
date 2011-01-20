@@ -1,7 +1,7 @@
 # Default key bindings for urxvi
 
 # define map in terms of bind
-(def map (key input)
+(def map(key input)
   (bind key
     (push_input input)))
 
@@ -9,18 +9,20 @@
 bind 0 (or
          (push_repeat 0)
 	 (posx 0))
-each (range 1 9) (lambda (n) (bind n (push_repeat n)))
+
+each (range 1 9) (lambda(n)
+		   (bind n (push_repeat n)))
 
 # cursor movement:
 
 # functions that apply the repeat count
-(def horz (cols)
+(def horz(cols)
   (move 0 
    (* 
      (or repeat 1)
      cols)))
 
-(def vert (rows)
+(def vert(rows)
   (move 
     (* 
       (or repeat 1)
@@ -91,8 +93,8 @@ bind <C-d> (vert
 	       2))
 
 # find with repeat count
-(def fwr (find pattern)
-  (let ((loop (lambda (n)
+(def fwr(find pattern)
+  (let ((loop (lambda(n)
 	        (if (ne n 0)
 	          (apply find pattern
 	            (call loop (- n 1)))))))
@@ -106,7 +108,7 @@ bind e (cursor_pos (fwr 'find_forward' '\w(?!\w)'))	# Word character, not follow
 bind E (cursor_pos (fwr 'find_forward' '\S(?!\S)'))	# Non-space, not followed by a non-space
 
 # selection
-(def toggle_select (mode)
+(def toggle_select(mode)
   (select_mode
     (if select_mode '' type)))			# toggle the specified mode
 
@@ -119,7 +121,7 @@ bind y (if select_mode
 	     (repeat repeat)			# keep the repeat count for later
 	     (let ((old_keypress		# save current keypress event
 	       (on keypress			# hook the next key
-	         (lambda (key)
+	         (lambda(key)
 		   (on keypress old_keypress)	# restore previous event handler
 		   (if (eq key 0x79)		# y
 		     (select			# select lines
@@ -147,3 +149,17 @@ bind <Esc> (if select_mode
 	     (if selection
 	       select		# or clear any selection
 	       quit))		# or quit urxvi altogether
+
+# command mode
+(def ask (prompt action default)
+  (cmd_prompt prompt)
+  (cmd_text default)
+  (cmd_pos 0xFFFF)				# end of default
+  (cmd_insert_mode 1)
+  (cmd_action action)
+  (cmd_mode 1))
+
+cmd_bind <Enter> (progn (call cmd_action cmd_text)
+		        (cmd_mode 0))
+cmd_bind <Left> (cmd_pos (- cmd_pos 1))
+cmd_bind <Right> (cmd_pos (+ cmd_pos 1))

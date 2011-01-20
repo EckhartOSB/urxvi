@@ -28,7 +28,8 @@ sub on_user_command {
       # turn the cursor on
       $self->cmd_parse($self->locale_encode($terminal->Tputs('ve')));
       my @cursor = $self->screen_cur;
-      $self->{cursor_pos} = \@cursor;
+      $self->{orig_cursor_pos} = \@cursor;
+      $self->logical_cursor(@cursor[0],@cursor[1]);
       $self->{view_start} = $self->view_start;
       $status->{rend} = urxvt::OVERLAY_RSTYLE;
       $status->{window} = $self->overlay(
@@ -38,6 +39,7 @@ sub on_user_command {
       $urxvi->{status} = $status;
       $urxvi->{select_mode} = '';
       $self->{urxvi} = $urxvi;
+      $self->{cmd_mode} = ();
       $self->trigger("start");
       $self->update();
     }
@@ -75,24 +77,41 @@ sub on_key_release {
 sub quit {
   my $self = shift;
   $self->view_start($self->{view_start});
-  $self->screen_cur(@{ $self->{cursor_pos} });
+  $self->screen_cur(@{ $self->{orig_cursor_pos} });
   $self->trigger("quit");
   $self->{urxvi} = ();
 }
 
 sub eval_key {
   my ($self, $keysym) = @_;
-  $self->{repeat_touched} = 0;
-  if (!$self->trigger("keypress", $keysym)) {
-    if (my $keymap = $self->{keymap}->{"$keysym"}) {
+  if ($self->{cmd_mode}) {
+    if (my $keymap = $self->{cmd_keymap}->{"$keysym"}) {
       my ($context, $cmd) = @$keymap;
       $context->eval($cmd);
     } else {
-      $self->scr_bell();
+      my $cmd = $self->{cmd_text};
+      my $pos = $self->{cmd_pos};
+      if ($self->{cmd_insert_mode}) {
+        $cmd = substr($cmd,0,$pos) . chr($keysym & 0xFFFF) . substr($cmd,$pos);
+      } else {
+        $cmd = substr($cmd,0,$pos) . chr($keysym & 0xFFFF) . substr($cmd,$pos+1);
+      }
+      $self->{cmd_text} = $cmd;
+      $self->{cmd_pos} = $pos+1;
     }
+  } else {
+     $self->{repeat_touched} = 0;
+     if (!$self->trigger("keypress", $keysym)) {
+       if (my $keymap = $self->{keymap}->{"$keysym"}) {
+         my ($context, $cmd) = @$keymap;
+         $context->eval($cmd);
+       } else {
+         $self->scr_bell();
+       }
+     }
+     # if the command didn't set repeat count, clear it.
+     $self->{repeat} = 0 if !($self->{repeat_touched});
   }
-  # if the command didn't set repeat count, clear it.
-  $self->{repeat} = 0 if !($self->{repeat_touched});
   $self->update();
 }
 
@@ -125,7 +144,7 @@ sub update {
   my $urxvi = $self->{urxvi};
   if ($urxvi)
   {
-    my ($crow, $ccol) = $self->screen_cur();
+    my ($crow, $ccol) = $self->logical_cursor();
     my $status = $urxvi->{status};
     my $w = $status->{window};
     my $sts = "urxvi | ";
@@ -154,8 +173,40 @@ sub update {
     $sts .= (' ' x $rem) if $rem > 0;
     $w->set(0,0,$sts);
     $w->show();
+    if ($self->{cmd_mode}) {
+      $crow = $self->nrow-1;
+      my $cmdlin = $self->{cmd_line};
+      if (!$cmdlin) {
+        $cmdlin = $self->overlay(0, $crow, $self->ncol, 1, urxvt::DEFAULT_RSTYLE, 0);
+        $self->{cmd_line} = $cmdlin;
+      }
+      my $prompt = $self->{cmd_prompt};
+      my $text = $self->{cmd_text};
+      $ccol = $self->{cmd_pos};
+      $ccol = 0 if ($ccol < 0);
+      $ccol = length($text) if ($ccol > length($text));
+      $self->{cmd_pos} = $ccol;
+      $ccol += length($prompt);
+      my $pad = ' ' x ($self->ncol - length($prompt) - length($text));
+      my $text = $prompt . $text . $pad;
+      my @rends = map { urxvt::DEFAULT_RSTYLE | (($_ == $ccol) ? urxvt::RS_RVid : 0) } (0..length($text));
+      $cmdlin->set(0,0, $text, \@rends);
+      $cmdlin->show();
+    } else {
+      $self->{cmd_line}->hide if $self->{cmd_line};
+      $self->screen_cur($crow, $ccol);
+    }
     $self->want_refresh();
   }
+}
+
+sub logical_cursor {
+  my ($self, $row, $col) = @_;
+  if (defined($row) && defined($col)) {
+    my @cursor = ($row, $col);
+    $self->{cursor_pos} = \@cursor;
+  }
+  @{ $self->{cursor_pos} };
 }
 
 sub my_resource {
@@ -269,7 +320,7 @@ sub define_functions {
   $functions->{'^'} = sub {
     my ($self, $row) = @_;
     if (!$row) {
-      ($row) = $global_self->screen_cur;
+      ($row) = $global_self->logical_cursor;
     }
     my $text = $global_self->ROW_t($row);
     my $ccol;
@@ -283,7 +334,7 @@ sub define_functions {
   $functions->{'$'} = sub {
     my ($self, $row) = @_;
     if (!$row) {
-      ($row) = $global_self->screen_cur;
+      ($row) = $global_self->logical_cursor;
     }
     my $text = $global_self->ROW_t($row);
     my $ccol;
@@ -358,10 +409,52 @@ sub define_functions {
     my $func = $self->eval(shift);
     $self->$func(@_) if $func;
   };
+  $functions->{cmd_action} = sub {
+    my ($self,$action) = @_;
+    my $prev = $global_self->{cmd_action};
+    $global_self->{cmd_action} = $self->eval($action) if (defined($action));
+    $prev;
+  };
+  $functions->{cmd_bind} = sub {
+    my ($self, $key, $cmd) = @_;
+    my $keysym = $global_self->translate_keyname($self->eval($key));
+    my @keymap = ($self, $cmd);
+    $global_self->{cmd_keymap}->{"$keysym"} = \@keymap;
+  };
+  $functions->{cmd_insert_mode} = sub {
+    my ($self,$mode) = @_;
+    my $prev = $global_self->{cmd_insert_mode};
+    $global_self->{cmd_insert_mode} = $self->eval($mode) if (defined($mode));
+    $prev;
+  };
+  $functions->{cmd_mode} = sub {
+    my ($self,$mode) = @_;
+    my $prev = $global_self->{cmd_mode};
+    $global_self->{cmd_mode} = $self->eval($mode) if (defined($mode));
+    $prev;
+  };
+  $functions->{cmd_pos} = sub {
+    my ($self,$pos) = @_;
+    my $prev = $global_self->{cmd_pos};
+    $global_self->{cmd_pos} = $self->eval($pos) if (defined($pos));
+    $prev;
+  };
+  $functions->{cmd_prompt} = sub {
+    my ($self,$prompt) = @_;
+    my $prev = $global_self->{cmd_prompt};
+    $global_self->{cmd_prompt} = $self->eval($prompt) if (defined($prompt));
+    $prev;
+  };
+  $functions->{cmd_text} = sub {
+    my ($self,$text) = @_;
+    my $prev = $global_self->{cmd_text};
+    $global_self->{cmd_text} = $self->eval($text) if (defined($text));
+    $prev;
+  };
   $functions->{context} = sub { shift; };
   $functions->{cursor_column} = sub {
     my $self = shift;
-    my ($crow, $ccol) = $global_self->screen_cur;
+    my ($crow, $ccol) = $global_self->logical_cursor;
     $ccol;
   };
   $functions->{cursor_pos} = sub {
@@ -375,7 +468,7 @@ sub define_functions {
       $global_self->scr_bell;
       @pos = ();
     } else {
-      @pos = $global_self->screen_cur;
+      @pos = $global_self->logical_cursor;
       if (defined($row)) {
          my $vrow = $global_self->view_start;
          my $max = $row - 1;
@@ -385,14 +478,14 @@ sub define_functions {
          } elsif ($vrow < $min) {
            $global_self->view_start($min);
          }
-         $global_self->screen_cur($row, $col);
+         $global_self->logical_cursor($row, $col);
       }
     }
     \@pos;
   };
   $functions->{cursor_row} = sub {
     my $self = shift;
-    my ($crow, $ccol) = $global_self->screen_cur;
+    my ($crow, $ccol) = $global_self->logical_cursor;
     $crow;
   };
   $functions->{def} = sub {
@@ -416,7 +509,7 @@ sub define_functions {
     my ($pattern, $start) = map {$self->eval($_)} @_;
     my ($row, $col);
     my $maxcol = $global_self->ncol-1;
-    ($row, $col) = $start ? @$start : $global_self->screen_cur;
+    ($row, $col) = $start ? @$start : $global_self->logical_cursor;
     if ($col > 0) {
       $col--;
     } else {
@@ -445,7 +538,7 @@ sub define_functions {
     my $self = shift;
     my ($pattern, $start) = map {$self->eval($_)} @_;
     my ($row, $col);
-    ($row, $col) = $start ? @$start : $global_self->screen_cur;
+    ($row, $col) = $start ? @$start : $global_self->logical_cursor;
     $col++;
     my $max = $global_self->nrow-1;
     my $rslt;
@@ -555,7 +648,7 @@ sub define_functions {
     my $self = shift;
     my $nrows = $self->eval(shift);
     my $ncols = $self->eval(shift);
-    my ($crow,$ccol) = $global_self->screen_cur;
+    my ($crow,$ccol) = $global_self->logical_cursor;
     if ($nrows) {
       my $new_row = $crow + $nrows;
       if ($new_row >= $global_self->nrow) {
@@ -579,7 +672,7 @@ sub define_functions {
       }
       $ccol = $new_col;
     }
-    $global_self->screen_cur($crow, $ccol);
+    $global_self->logical_cursor($crow, $ccol);
     my @rslt = ($crow, $ccol);
     \@rslt;
   };
@@ -620,14 +713,14 @@ sub define_functions {
   $functions->{posx} = sub {
     my $self = shift;
     my $col = $self->eval(shift);
-    my ($crow, $ccol) = $global_self->screen_cur;
+    my ($crow, $ccol) = $global_self->logical_cursor;
     my $text;
     if (($col >= 0) && ($col < $global_self->ncol)) {
       $ccol = $col;
     } else {
       $global_self->scr_bell;
     }
-    $global_self->screen_cur($crow,$ccol);
+    $global_self->logical_cursor($crow,$ccol);
     my @rslt = ($crow,$ccol);
     \@rslt;
   };
@@ -640,7 +733,7 @@ sub define_functions {
       $global_self->scr_bell;
       @success = ();
     } else {
-      my ($crow, $ccol) = $global_self->screen_cur;
+      my ($crow, $ccol) = $global_self->logical_cursor;
       my $vrow = $global_self->view_start;
       my $max = $row - 1;
       my $min = $row - ($global_self->nrow - 1);
@@ -649,7 +742,7 @@ sub define_functions {
       } elsif ($vrow < $min) {
         $global_self->view_start($min);
       }
-      $global_self->screen_cur($row, $ccol);
+      $global_self->logical_cursor($row, $ccol);
       @success = ($row,$ccol);
     }
     \@success;
@@ -730,7 +823,7 @@ sub define_functions {
     my $new = shift;
     if (defined($new)) {
       if ($new = $self->eval($new)) {
-	my @anchor = $global_self->screen_cur;
+	my @anchor = $global_self->logical_cursor;
 	$urxvi->{select_anchor} = \@anchor;
       }
       $urxvi->{select_mode} = $new;

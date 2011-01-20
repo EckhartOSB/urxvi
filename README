@@ -86,6 +86,12 @@ modes, "line" and "char".  The former selects whole lines, while the latter sele
 row/column pairs.  Selected text is immediately copied to the clipboard, as it would be if
 you performed the same selection with the mouse.
 
+When in command mode, the following default key bindings are provided by urxvirc:
+
+<Left>		Move command cursor one character left
+<Right>		Move command cursor one character right
+<Enter>		Apply the command
+
 
 SYNTAX
 
