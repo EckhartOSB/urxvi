@@ -551,12 +551,34 @@ Defined in the supplied version of urxvirc.
 
 -----------------------------------------------------------------------------
 
+ic - Ignore case on search
+
+(ic) => boolean
+
+Makes subsequent interactive finds case-insensitive.  Returns previous value
+of (ignore_case).
+
+This function is defined in urxvirc.
+
+-----------------------------------------------------------------------------
+
 if - Conditional branch
 
 (if cond iftrue [iffalse]) => result
 
 Evaluates cond for truth.  If true, evaluates and returns iftrue.  Otherwise,
 evaluates and returns iffalse.
+
+-----------------------------------------------------------------------------
+
+ignore_case - Get case-sensitivity of interactive searches
+
+(ignore_case) => boolean
+
+Returns true if case-sensitivity has been turned off.  Default is false
+(case-sensitive).
+
+This function is defined in urxvirc by invoking (noic).
 
 -----------------------------------------------------------------------------
 
@@ -751,11 +773,33 @@ place of an argument that isn't passed, if needed as a placeholder.
 
 ------------------------------------------------------------------------------
 
+noic - Turn off ignore case on search
+
+(noic) => boolean
+
+Makes future interactive finds case-sensitive.  Returns previous value of
+(ignore_case).
+
+This function is defined in urxvirc.
+
+------------------------------------------------------------------------------
+
 not - Invert a boolean result
 
 (not operand) => boolean
 
 Returns the reverse of the boolean sense of operand.
+
+-----------------------------------------------------------------------------
+
+nows - Turn off wrap search
+
+(nows) => boolean
+
+Makes future interactive finds fail if not found in the specified direction,
+without wrapping around.  Returns previous value of (wrap_search).
+
+This function is defined in urxvirc.
 
 -----------------------------------------------------------------------------
 
@@ -976,6 +1020,25 @@ view_start - First visible row
 
 Returns the row number of the first visible row.  If the view is not scrolled
 back, this will be 0.  Otherwise, it will be a negative number.
+
+------------------------------------------------------------------------------
+
+wrap_search - Get whether wrap on search is in effect
+
+(wrap_search) => boolean
+
+Returns true if an unsuccessful interactive find will attempt to wrap around
+the text buffer.  The default is true.
+
+This function is defined in urxvirc by invoking (ws).
+
+------------------------------------------------------------------------------
+
+ws - Turn on wrap search mode
+
+(ws) => boolean
+
+Turns on (wrap_search), and returns its previous value.
 
 ------------------------------------------------------------------------------
 

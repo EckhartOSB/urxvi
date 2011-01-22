@@ -109,8 +109,42 @@ bind E (cursor_pos (fwr 'find_forward' '\S(?!\S)'))	# Non-space, not followed by
 
 # interactive find
 
+(def ic ()
+  (let ((prev ignore_case))
+       (defin global_context 'ignore_case' 1)
+       prev))
+(def noic () 
+  (let ((prev ignore_case))
+       (defin global_context 'ignore_case' 0)
+       prev))
+(def ws () 
+  (let ((prev wrap_search))
+       (defin global_context 'wrap_search' 1)
+       prev))
+(def nows () 
+  (let ((prev wrap_search))
+       (defin global_context 'wrap_search' 0)
+       prev))
+
+noic		# default to case-sensitive
+ws		# and wrap search
+
+(def find_wrap_forward (pattern)
+  (or
+    (find_forward pattern)
+    (find_forward pattern (list (first_row 0)))))
+
+(def find_wrap_backward (pattern)
+  (or
+    (find_backward pattern)
+    (find_backward pattern (list (last_row last_column)))))
+
 (def do_find (ptn dir)
-  (let ((found (fwr (format 'find_%s' dir) ptn)))
+  (let ((pattern (if ignore_case
+  		     (format '(?i)%s' ptn)
+		     ptn))
+	(wrap (if wrap_search 'wrap_' ''))
+        (found (fwr (format 'find_%s%s' wrap dir) pattern)))
        (if found
            (cursor_pos found)
 	   (message (format 'pattern not found: %s' ptn)))
