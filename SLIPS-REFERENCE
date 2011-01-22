@@ -269,6 +269,15 @@ Returns the previous value.
 
 -------------------------------------------------------------------------------
 
+cmd_map - Map key in command mode
+
+(cmd_map key input) => mapping
+
+Binds the key specified to simulate the keyboard input specified in input.
+This mapping only applies when (cmd_mode) is true.
+
+-------------------------------------------------------------------------------
+
 cmd_mode - Sets/gets command mode
 
 (cmd_mode [boolean]) => boolean
@@ -365,7 +374,7 @@ move, posx, and posy functions.
 
 ------------------------------------------------------------------------------
 
-def - Define a new function
+def - Define a function
 
 (def name (arg...) cmd...) => function
 
@@ -397,6 +406,19 @@ default value if not passed.
 
 -----------------------------------------------------------------------------
 
+defin - Define a function within a given context
+
+(defin context name (arg...) cmd...) => function
+
+Creates a new function in the namespace of the specified context.  All other
+arguments perform the same as for (def), and the evaluation of all other
+tokens occurs in the current context.
+
+This function is most useful for creating global side-effects, which is why
+it's syntax is wordier than a scoped def.
+
+-----------------------------------------------------------------------------
+
 each - Process each element of an array
 
 (each array function) => result
@@ -412,6 +434,15 @@ eq - String equality
 
 Compares the evaluation of both operands using Perl's eq operator, and returns
 the result.
+
+----------------------------------------------------------------------------
+
+eval - Evaluate strings as SLIPS code
+
+(eval string...) => result
+
+Parses and executes each string argument as if it were SLIPS source code.
+Returns the result of the last evaluation.
 
 ----------------------------------------------------------------------------
 

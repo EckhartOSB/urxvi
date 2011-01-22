@@ -107,6 +107,28 @@ bind B (cursor_pos (fwr 'find_backward' '(?<!\S)\S'))
 bind e (cursor_pos (fwr 'find_forward' '\w(?!\w)'))	# Word character, not followed by word character
 bind E (cursor_pos (fwr 'find_forward' '\S(?!\S)'))	# Non-space, not followed by a non-space
 
+# interactive find
+
+(def do_find (ptn dir)
+  (let ((found (fwr (format 'find_%s' dir) ptn)))
+       (if found
+           (cursor_pos found)
+	   (message (format 'pattern not found: %s' ptn)))
+       found))
+
+(def interactive_find (dir)
+  (lambda (text)
+    (let ((ptn (if (eq text '')
+    		   last_find
+		   text)))
+      (defin global_context 'last_find' ptn)
+      (defin global_context 'last_dir' dir)
+      (do_find ptn dir))))
+
+bind '/' (ask '/' (interactive_find 'forward'))
+bind '?' (ask '?' (interactive_find 'backward'))
+bind 'n' (do_find last_find last_dir)
+
 # selection
 (def toggle_select(mode)
   (select_mode
@@ -151,10 +173,17 @@ bind <Esc> (if select_mode
 	       quit))		# or quit urxvi altogether
 
 # command mode
+
+bind ':' (ask ':' (getdef 'eval'))
+
+(def cmd_map(key input)
+  (cmd_bind key
+    (push_input input)))
+
 (def ask (prompt action default)
   (cmd_prompt prompt)
   (cmd_text default)
-  (cmd_pos 0xFFFF)				# end of default
+  (cmd_pos (length default))		# end of default
   (cmd_insert_mode 1)
   (cmd_action action)
   (cmd_mode 1))
@@ -174,3 +203,20 @@ cmd_bind <BS> (if (eq cmd_pos 0)
 			  (substr cmd_text 0 cmd_pos)
 			  (substr cmd_text old_pos))
 			(substr cmd_text old_pos)))))
+
+cmd_bind <Home> (cmd_pos 0)
+cmd_bind <End> (cmd_pos (length cmd_text))
+cmd_map  <C-b> <Home>
+cmd_map  <C-e> <End>
+cmd_bind <C-u> (progn
+		 (cmd_text (substr cmd_text cmd_pos))
+		 (cmd_pos 0))
+cmd_bind <Insert> (cmd_insert_mode (not (cmd_insert_mode)))
+cmd_bind <Del> (cmd_text
+		 (if (gt cmd_pos 0)
+		     (format "%s%s"
+		       (substr cmd_text 0 cmd_pos)
+		       (substr cmd_text (+ cmd_pos 1)))
+		     (substr cmd_text (+ cmd_pos 1))))
+cmd_bind <Esc> (cmd_mode 0)
+cmd_map  <C-c> <Esc>

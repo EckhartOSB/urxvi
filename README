@@ -44,6 +44,9 @@ The supplied version of urxvirc provides the following key bindings:
 $		move to the last non-space character on the current row.
 +, <Return>	move to the beginning of the (current + (repeat-count or 1)) row.
 -		move to the beginning of the (current - (repeat-count or 1)) row.
+/		prompt the user for a pattern to find forward
+?		prompt the user for a pattern to find backward
+:		prompt the user for a command to execute
 0		move to beginning of line, unless a repeat-count has been started
 		(in which case it adds the 0 to the repeat-count).
 1-9		add the digit to the repeat-count.
@@ -61,6 +64,8 @@ j, <Down>	move (repeat-count or 1) rows down.
 k, <Up>		move (repeat-count or 1) rows up.
 l, <Right>	move (repeat-count or 1) columns right.
 L		move to the beginning of the last visible row.
+n		find the next occurrence of the previous interactive "find", in the
+		same direction.
 q		quit urxvi
 v		toggle character-wise selection mode.
 V		toggle line-wise selection mode.
@@ -88,11 +93,17 @@ you performed the same selection with the mouse.
 
 When in command mode, the following default key bindings are provided by urxvirc:
 
-<Left>		Move command cursor one character left
-<Right>		Move command cursor one character right
-<Enter>		Apply the command
+<Left>		Move command cursor one character left.
+<Right>		Move command cursor one character right.
+<Enter>		Apply the command.
 <BS>		Erase character to the left of the command cursor.
 		If no characters in cmd_text, exit command mode.
+<Home>, <C-b>	Move command cursor to leftmost character.
+<End>, <C-e>	Move command cursor to the right of the command text.
+<Insert>	Toggle insert mode.
+<Del>		Delete the character under the command cursor.
+<C-u>		Erase all text to the left of the command cursor.
+<Esc>, <C-c>	Exit command mode without executing anything.
 
 
 SYNTAX

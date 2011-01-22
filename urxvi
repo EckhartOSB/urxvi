@@ -53,7 +53,7 @@ sub on_key_press {
   if ($urxvi) {
     $self->debug_out(sprintf("keypress: %04x\n", $keysym));
     $self->{last_event} = $event;
-    if ($keysym > 0xffe0) {
+    if (($keysym > 0xffe0) && ($keysym < 0xfff0)) {
       $self->{metakeys} |= $self->metacode($keysym);
     } else {
       my $meta = $self->{metakeys};
@@ -68,7 +68,7 @@ sub on_key_press {
 
 sub on_key_release {
   my ($self, $event, $keysym) = @_;
-  if ($keysym > 0xffe0) {
+  if (($keysym > 0xffe0) && ($keysym < 0xfff0)) {
     $self->{metakeys} &= ~($self->metacode($keysym));
   }
   $self->{urxvi};
@@ -76,6 +76,8 @@ sub on_key_release {
 
 sub quit {
   my $self = shift;
+  $self->{cmd_mode} = 0;
+  $self->update;
   $self->view_start($self->{view_start});
   $self->screen_cur(@{ $self->{orig_cursor_pos} });
   $self->trigger("quit");
@@ -493,6 +495,12 @@ sub define_functions {
     $name = $self->eval($name);
     $self->{functions}->{$name} = $self->make_func($args, @body);
   };
+  $functions->{defin} = sub {
+    my ($self, $context, $name, $args, @body) = @_;
+    $context = $self->eval($context);
+    $name = $self->eval($name);
+    $context->{functions}->{$name} = $self->make_func($args, @body);
+  };
   $functions->{each} = sub {
     my $self = shift;
     my ($ary, $lambda) = map {$self->eval($_)} @_;
@@ -503,6 +511,12 @@ sub define_functions {
   $functions->{eq} = sub {
     my $self = shift;
     $self->eval(shift) eq $self->eval(shift);
+  };
+  $functions->{eval} = sub {
+    my $self = shift;
+    for (@_) {
+      $self->eval($self->eval($_));
+    }
   };
   $functions->{find_backward} = sub {
     my $self = shift;
@@ -611,9 +625,9 @@ sub define_functions {
   $functions->{length} = sub {
     my $self = shift;
     my $what = $self->eval(shift);
-    (ref($what) eq "ARRAY") ?
-      length @$what :
-      length $what;
+    ((ref($what) eq "ARRAY") ?
+      scalar @$what :
+      length $what) || 0;
   };
   $functions->{let} = sub {
     my ($self, $args, @body) = @_;
@@ -874,9 +888,9 @@ sub make_func {
     bless $context;
     $context->{functions} = {};
     $context->{prev_context} = $defining;
-    if ($defining->{debug}) {
-      $context->{debug} = $defining->{debug};
-      $context->{debug_indent} = $defining->{debug_indent};
+    if ($calling->{debug}) {
+      $context->{debug} = $calling->{debug};
+      $context->{debug_indent} = $calling->{debug_indent};
     }
     foreach my $init (@param_init) {
       my $arg = shift @args;
@@ -889,8 +903,8 @@ sub make_func {
         # evaluate default in the bound context
       }
       $context->{functions}->{$name} = (defined($arg) ?
-        sub { $context->debug_out("arg\n");$arg } :
-        sub { $context->debug_out("default\n");$default });
+        sub { $arg } :
+        sub { $default });
     }
     my $rval;
     for (@body) {
@@ -947,6 +961,11 @@ sub eval {
   if (defined($cmd)) {
     if ($cmd =~ /^\((.+)\)$/) {
       $cmd = $self->eval($1);
+      if (!scalar(@tokens)) {    # just one big parenthesized expression, don't double-eval
+        $self->debug_out("\x{2514}\x{2500}\x{2500}\x{2500}> $result\n");
+        $self->debug_outdent;
+        return $cmd;
+      }
     } 
     if (my $func = $self->lookup_function($cmd)) {
       $result = $func->($self, @tokens);
