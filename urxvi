@@ -612,6 +612,16 @@ sub define_functions {
     }
     $rslt;
   };
+  $functions->{join} = sub {
+    my $self = shift;
+    my $delim = $self->eval(shift);
+    my @ops = ();
+    for (@_) {
+      my $op = $self->eval($_);
+      push @ops, ((ref($op) eq "ARRAY") ? @$op : $op);
+    }
+    join($delim, @ops);
+  };
   $functions->{lambda} = sub {
     my ($self, $args, @body) = @_;
     $self->make_func($args, @body);
@@ -853,6 +863,12 @@ sub define_functions {
   };
   $functions->{selection} = sub { $global_self->selection };
   $functions->{source} = sub { my $self = shift; $global_self->source(map {$self->eval($_)} @_) };
+  $functions->{split} = sub {
+    my $self = shift;
+    my ($pattern, $string, $limit) = map {$self->eval($_)} @_;
+    my @array = split($pattern, $string, $limit);
+    \@array;
+  };
   $functions->{substr} = sub {
     my $self = shift;
     my ($text, $start, $len) = map { $self->eval($_) } @_;

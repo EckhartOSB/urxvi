@@ -606,6 +606,16 @@ def 'xyz' 123
 
 -----------------------------------------------------------------------------
 
+join - Join elements as a string
+
+(join delim operand...) => string
+
+Concatenates each element of each operand, separated by delim.  If operand
+is an array, each element of the array will be separately concatenated.
+otherwise, the string representation of operand will be used.
+
+-----------------------------------------------------------------------------
+
 lambda - Define an anonymous function
 
 (lambda (arg...) cmd...) => function
@@ -991,6 +1001,15 @@ turn, returning a true value if the last one could be read, otherwise a
 false value.
 
 Each file name will be globbed.
+
+------------------------------------------------------------------------------
+
+split - Split a string into an array
+
+(split pattern string) => array
+
+Uses Perl's split function, so pattern is a regular expression, and all Perl
+rules apply.
 
 ------------------------------------------------------------------------------
 
