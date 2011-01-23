@@ -806,7 +806,7 @@ sub define_functions {
     $global_self->{repeat_touched} = 1;
     $global_self->{repeat};
   };
-  $functions->{quit} = sub { my $self = shift; $self->quit; };
+  $functions->{quit} = sub { my $self = shift; $global_self->quit; };
   $functions->{range} = sub {
     my $self = shift;
     my ($beg,$end) = map {$self->eval($_)} @_;

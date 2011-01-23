@@ -927,7 +927,8 @@ quit - Exit urxvi
 
 (quit) => 1
 
-Returns the terminal window to its normal input state.
+Returns the terminal window to its normal input state.  The functions (q) and
+(x) are mapped as synonyms so you can use normal vi exit commands ":q" and ":x".
 
 ------------------------------------------------------------------------------
 

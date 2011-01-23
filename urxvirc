@@ -180,25 +180,55 @@ bind y (if select_mode
 	         (lambda(key)
 		   (on keypress old_keypress)	# restore previous event handler
 		   (if (eq key 0x79)		# y
-		     (select			# select lines
-		       cursor_row		# begin with the current line
-		       0			# leftmost column
-		       (min
-		         last_row		# not beyond last row
-		         (+ 
-			   cursor_row		# use repeat count for number of rows
-			   (-
-			     (or repeat 1)
-			     1)))
-		       last_column)		# full width
+		     (progn
+		       (select			# select lines
+		         cursor_row		# begin with the current line
+		         0			# leftmost column
+		         (min
+		           last_row		# not beyond last row
+		           (+ 
+			     cursor_row		# use repeat count for number of rows
+			     (-
+			       (or repeat 1)
+			       1)))
+		         last_column)		# full width
+		       1)			# key handled
 		     (progn			# if not y,
+		       (on keypress		# on the next key
+		         (lambda(key)
+			   (select_mode '')	# turn off select mode
+			   (on keypress old_keypress)	# restore the old handler
+			   (push_key key)	# call it
+			   1))			# key handled
 		       (select_mode 'char')	# turn on select mode
-		       (push_key key)		# do the key
-		       (select_mode '')))	# turn select mode off
-		   1)))))))			# key handled
+		       0)))))))))		# do the key
 
+# mark and jump to mark
+
+bind m (let ((cpos cursor_pos)			# grab cursor position
+	     (old_keypress			# save current keypress handler
+	      (on keypress			# grab the next key
+	        (lambda(key)
+		  (on keypress old_keypress)	# restore previous handler
+		  (defin global_context
+		    (format "mark[%c]" key)	# mark name
+		    cpos)
+		  1)))))			# key handled
+
+bind ' (let ((old_keypress
+	      (on keypress
+	        (lambda(key)
+		  (on keypress old_keypress)
+		  (let ((cpos (apply (format "mark[%c]" key))))
+		       (if cpos
+		           (cursor_pos cpos)
+			   (message (format "No such mark: %c" key))))
+		  1)))))
 # miscellaneous
 bind q quit
+
+def q quit			# from command mode
+def x quit
 
 bind <Esc> (if select_mode
              (select_mode '')	# escape select mode
