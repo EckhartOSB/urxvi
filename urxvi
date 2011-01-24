@@ -874,6 +874,31 @@ sub define_functions {
     my ($text, $start, $len) = map { $self->eval($_) } @_;
     defined($len) ? substr($text, $start, $len) : substr($text, $start);
   };
+  $functions->{text} = sub {
+    my $self = shift;
+    my ($start, $end) = map {$self->eval($_)} @_;
+    my ($brow, $bcol, $erow, $ecol);
+    if (defined($start)) {
+      ($brow, $bcol) = ((ref($start) eq "ARRAY") ? @$start : ($start, 0));
+      if (defined($end)) {
+        ($erow, $ecol) = ((ref($end) eq "ARRAY") ? @$end : ($end, $global_self->ncol-1));
+      } else {
+        ($erow, $ecol) = ($brow, $global_self->ncol-1);
+      }
+    } else {
+      ($brow, $bcol, $erow, $ecol) = ($global_self->top_row, 0, $global_self->nrow-1, $global_self->ncol-1);
+    }
+    my $text = '';
+    for ($brow..$erow) {
+      my $row = $_;
+      my $row_text = $global_self->ROW_t($row);
+      $row_text = substr($row_text, 0, $ecol+1) if ($row == $erow);
+      $row_text = substr($row_text, $bcol) if ($bcol && ($row == $brow));
+      $text .= $row_text;
+      $text .= "\n" if ($row < $erow);
+    }
+    $text;
+  };
   $functions->{view_start} = sub { $global_self->view_start; };
   $global_self->{functions} = $functions;
 }

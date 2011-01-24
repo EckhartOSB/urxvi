@@ -1023,6 +1023,36 @@ is also limited to that.
 
 ------------------------------------------------------------------------------
 
+text - Extract text from the terminal window
+
+(text [start [end]]) => string
+
+Extracts text from the window as a string, separating rows with a newline
+character.
+
+If start is not specified, the entire text of the window is returned.
+If start is specifed, then:
+  If start is an array, it specifies the beginning row and column.
+  Otherwise, it specifies the beginning row, and column is assumed to be 0.
+  If end is not specified, it is assumed to be the same row as start, but
+  through column (last_column).
+  If end is specified, then:
+    If end is an array, it specified the ending row and column.
+    Otherwise, it specifies the ending row, and the column is assumed to
+    be (last_column).
+
+Examples:
+
+(text)		=> all text in the window
+(text 12)	=> text of row 12
+(text -10 -1)	=> text of the 10 rows most recently scrolled out of view
+(text view_start (+ view_start (- page_size 1)))
+		=> currently visible text
+(text (list 3 40) (list 5 10))
+		=> text from row 3, column 40 through row 5, column 10
+
+------------------------------------------------------------------------------
+
 vert - Move the cursor vertically
 
 (vert rows)
