@@ -856,6 +856,17 @@ It is also always one greater than the result of (last_row).
 
 ------------------------------------------------------------------------------
 
+pipe - Pipe a string to an external command
+
+(pipe string command) => boolean
+
+Sends the text in string to the specified external command as input.  If
+your command needs a terminal, be sure to prefix it with "urxvt -e".
+
+Returns true if the pipe closes successfully.
+
+------------------------------------------------------------------------------
+
 posx - Position the cursor to an absolute column
 
 (posx column) => array

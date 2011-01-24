@@ -236,6 +236,11 @@ bind <Esc> (if select_mode
 	       select		# or clear any selection
 	       quit))		# or quit urxvi altogether
 
+# pipe to a command
+bind '|' (let ((txt (if selection selection text)))
+	      (ask 'Pipe to: ' (lambda(where)
+	      			 (pipe txt where))))
+
 # command mode
 
 bind ':' (ask ':' (getdef 'eval'))
